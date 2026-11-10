@@ -2,6 +2,39 @@
 <mdscript name="LMP_Takeover" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../x4_scripting_ref/schemas/md.xsd">
   <cues>
     <!-- Snapshot and handoff. No default-order swap until cooperative GT path verified. -->
+    <library name="LMP_GTMK3_ParameterNames" purpose="run_actions">
+      <actions>
+        <return value="['home', 'maxbuy', 'maxsell', 'allowillegal', 'enforceRouteIllegalLegality', 'ignorecarrieraux', 'ignorebuildstorage', 'ignoretraderules', 'ignoreplayerpricing', 'ignoremk1supply', 'logbookentries', 'idleParking', 'autoJumpDistanceByLevel', 'factionpriority', 'autowares', 'warebasket', 'sectorwhitelist', 'blockedstations', 'priorityscoremultiplier', 'prioritywares', 'distancepenalty', 'notifications', 'fleetcoordination', 'cargotarget', 'marketupdatefreq', 'debuglevel', 'tradeeval', 'factionblacklist']"/>
+      </actions>
+    </library>
+
+    <library name="LMP_GTMK3_ParameterType" purpose="run_actions">
+      <params>
+        <param name="parameter"/>
+      </params>
+      <actions>
+        <do_if value="$parameter == 'home'">
+          <return value="'object'"/>
+        </do_if>
+        <do_if value="$parameter == 'warebasket' or $parameter == 'sectorwhitelist' or $parameter == 'blockedstations' or $parameter == 'prioritywares'">
+          <return value="'list'"/>
+        </do_if>
+        <do_if value="$parameter == 'allowillegal' or $parameter == 'enforceRouteIllegalLegality' or $parameter == 'ignorecarrieraux' or $parameter == 'ignorebuildstorage' or $parameter == 'ignoretraderules' or $parameter == 'ignoreplayerpricing' or $parameter == 'ignoremk1supply' or $parameter == 'logbookentries' or $parameter == 'idleParking' or $parameter == 'autoJumpDistanceByLevel' or $parameter == 'factionpriority' or $parameter == 'autowares' or $parameter == 'fleetcoordination' or $parameter == 'tradeeval'">
+          <return value="'boolean'"/>
+        </do_if>
+        <do_if value="$parameter == 'marketupdatefreq'">
+          <return value="'time'"/>
+        </do_if>
+        <do_if value="$parameter == 'factionblacklist'">
+          <return value="'internal'"/>
+        </do_if>
+        <do_if value="$parameter == 'maxbuy' or $parameter == 'maxsell' or $parameter == 'priorityscoremultiplier' or $parameter == 'distancepenalty' or $parameter == 'notifications' or $parameter == 'cargotarget' or $parameter == 'debuglevel'">
+          <return value="'number'"/>
+        </do_if>
+        <return value="'unknown'"/>
+      </actions>
+    </library>
+
     <library name="LMP_SnapshotShip" purpose="run_actions">
       <params>
         <param name="ship"/>
@@ -10,21 +43,204 @@
         <do_if value="not $ship? or not $ship.exists">
           <return value="false"/>
         </do_if>
+        <do_if value="$ship.defaultorder? and $ship.defaultorder.id == 'GalaxyTraderMK3' and global.$LMP_Ships.{$ship}.$snapshot? and global.$LMP_Ships.{$ship}.$snapshot.$snapshotVersion == 2 and global.$LMP_Ships.{$ship}.$snapshot.$gtMK3?">
+          <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'SNAPSHOTTED'"/>
+          <return value="true"/>
+        </do_if>
         <set_value name="$snap" exact="table[]"/>
+        <set_value name="$snap.$snapshotVersion" exact="2"/>
         <set_value name="$snap.$idcode" exact="$ship.idcode"/>
         <set_value name="$snap.$commander" exact="if $ship.commander? then $ship.commander else null"/>
         <set_value name="$snap.$home" exact="if $ship.home? then $ship.home else null"/>
         <set_value name="$snap.$defaultOrderId" exact="if $ship.defaultorder? then $ship.defaultorder.id else null"/>
         <set_value name="$snap.$captured" exact="player.age"/>
+        <do_if value="$ship.defaultorder? and $ship.defaultorder.id == 'GalaxyTraderMK3'">
+          <set_value name="$order" exact="$ship.defaultorder"/>
+          <set_value name="$snap.$gtMK3" exact="table[]"/>
+          <set_value name="$snap.$gtMK3.$pilotPresent" exact="$ship.pilot?"/>
+          <set_value name="$snap.$gtMK3.$pilot" exact="if $ship.pilot? then $ship.pilot else null"/>
+          <set_value name="$snap.$gtMK3.$commanderPresent" exact="$ship.commander?"/>
+          <set_value name="$snap.$gtMK3.$commander" exact="if $ship.commander? then $ship.commander else null"/>
+          <set_value name="$snap.$gtMK3.$assignmentPresent" exact="$ship.assignment?"/>
+          <set_value name="$snap.$gtMK3.$assignment" exact="if $ship.assignment? then $ship.assignment else null"/>
+          <set_value name="$snap.$gtMK3.$homePresent" exact="$ship.home?"/>
+          <set_value name="$snap.$gtMK3.$home" exact="if $ship.home? then $ship.home else null"/>
+          <set_value name="$snap.$gtMK3.$defaultOrderId" exact="$order.id"/>
+          <set_value name="$snap.$gtMK3.$captured" exact="player.age"/>
+          <set_value name="$snap.$gtMK3.$inventorySourceVersion" exact="10004"/>
+          <set_value name="$snap.$gtMK3.$params" exact="table[]"/>
+          <run_actions ref="LMP_GTMK3_ParameterNames" result="$parameterNames"/>
+          <do_all exact="$parameterNames.count" counter="$i">
+            <set_value name="$parameter" exact="$parameterNames.{$i}"/>
+            <set_value name="$parameterKey" exact="'$' + $parameter"/>
+            <set_value name="$field" exact="table[]"/>
+            <set_value name="$field.$type" exact="'unknown'"/>
+            <run_actions ref="LMP_GTMK3_ParameterType" result="$field.$type">
+              <param name="parameter" value="$parameter"/>
+            </run_actions>
+            <do_if value="$field.$type == 'unknown'">
+              <run_actions ref="GUNPIRE_Log">
+                <param name="component" value="'GT-SNAPSHOT'"/>
+                <param name="message" value="'Snapshot failed: unverified MK3 parameter type ' + $parameter + ' for ' + $ship.idcode"/>
+              </run_actions>
+              <return value="false"/>
+            </do_if>
+            <set_value name="$field.$present" exact="$order.{$parameterKey}?"/>
+            <do_if value="not $field.$present">
+              <run_actions ref="GUNPIRE_Log">
+                <param name="component" value="'GT-SNAPSHOT'"/>
+                <param name="message" value="'Snapshot failed: MK3 parameter unavailable ' + $parameter + ' for ' + $ship.idcode"/>
+              </run_actions>
+              <return value="false"/>
+            </do_if>
+            <set_value name="$parameterValue" exact="$order.{$parameterKey}"/>
+            <set_value name="$field.$isNull" exact="$parameterValue == null"/>
+            <do_if value="$field.$isNull">
+              <set_value name="$field.$value" exact="null"/>
+            </do_if>
+            <do_elseif value="$field.$type == 'list' or $field.$type == 'internal'">
+              <set_value name="$field.$value" exact="[]"/>
+              <do_if value="$parameterValue.count gt 0">
+                <do_all exact="$parameterValue.count" counter="$j">
+                  <append_to_list name="$field.$value" exact="$parameterValue.{$j}"/>
+                </do_all>
+              </do_if>
+            </do_elseif>
+            <do_else>
+              <set_value name="$field.$value" exact="$parameterValue"/>
+            </do_else>
+            <set_value name="$snap.$gtMK3.$params.{$parameterKey}" exact="$field"/>
+          </do_all>
+        </do_if>
         <set_value name="global.$LMP_Ships.{$ship}.$snapshot" exact="$snap"/>
         <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'SNAPSHOTTED'"/>
         <run_actions ref="GUNPIRE_Log">
           <param name="component" value="'TAKEOVER'"/>
           <param name="message" value="'Snapshot captured for ' + $ship.idcode"/>
         </run_actions>
+        <do_if value="$ship.defaultorder? and $ship.defaultorder.id == 'GalaxyTraderMK3'">
+          <run_actions ref="LMP_CompareGTMK3Snapshot">
+            <param name="ship" value="$ship"/>
+          </run_actions>
+        </do_if>
         <return value="true"/>
       </actions>
     </library>
+
+    <library name="LMP_CompareGTMK3Snapshot" purpose="run_actions">
+      <params>
+        <param name="ship"/>
+      </params>
+      <actions>
+        <do_if value="not $ship? or not $ship.exists or not $ship.defaultorder? or $ship.defaultorder.id != 'GalaxyTraderMK3' or not global.$LMP_Ships.{$ship}.$snapshot?">
+          <return value="false"/>
+        </do_if>
+        <set_value name="$snap" exact="global.$LMP_Ships.{$ship}.$snapshot"/>
+        <do_if value="$snap.$snapshotVersion != 2 or not $snap.$gtMK3?">
+          <return value="false"/>
+        </do_if>
+        <set_value name="$order" exact="$ship.defaultorder"/>
+        <set_value name="$mismatches" exact="''"/>
+        <do_if value="$snap.$idcode != $ship.idcode">
+          <set_value name="$mismatches" exact="if $mismatches == '' then 'ship-id' else $mismatches + ', ship-id'"/>
+        </do_if>
+        <do_if value="$snap.$defaultOrderId != $order.id or $snap.$gtMK3.$defaultOrderId != $order.id">
+          <set_value name="$mismatches" exact="if $mismatches == '' then 'default-order' else $mismatches + ', default-order'"/>
+        </do_if>
+        <set_value name="$livePresent" exact="$ship.pilot?"/>
+        <set_value name="$liveValue" exact="if $livePresent then $ship.pilot else null"/>
+        <do_if value="$snap.$gtMK3.$pilotPresent != $livePresent or $snap.$gtMK3.$pilot != $liveValue">
+          <set_value name="$mismatches" exact="if $mismatches == '' then 'pilot' else $mismatches + ', pilot'"/>
+        </do_if>
+        <set_value name="$livePresent" exact="$ship.commander?"/>
+        <set_value name="$liveValue" exact="if $livePresent then $ship.commander else null"/>
+        <do_if value="$snap.$gtMK3.$commanderPresent != $livePresent or $snap.$gtMK3.$commander != $liveValue">
+          <set_value name="$mismatches" exact="if $mismatches == '' then 'commander' else $mismatches + ', commander'"/>
+        </do_if>
+        <set_value name="$livePresent" exact="$ship.assignment?"/>
+        <set_value name="$liveValue" exact="if $livePresent then $ship.assignment else null"/>
+        <do_if value="$snap.$gtMK3.$assignmentPresent != $livePresent or $snap.$gtMK3.$assignment != $liveValue">
+          <set_value name="$mismatches" exact="if $mismatches == '' then 'assignment' else $mismatches + ', assignment'"/>
+        </do_if>
+        <set_value name="$livePresent" exact="$ship.home?"/>
+        <set_value name="$liveValue" exact="if $livePresent then $ship.home else null"/>
+        <do_if value="$snap.$gtMK3.$homePresent != $livePresent or $snap.$gtMK3.$home != $liveValue">
+          <set_value name="$mismatches" exact="if $mismatches == '' then 'home' else $mismatches + ', home'"/>
+        </do_if>
+        <run_actions ref="LMP_GTMK3_ParameterNames" result="$parameterNames"/>
+        <do_all exact="$parameterNames.count" counter="$i">
+          <set_value name="$parameter" exact="$parameterNames.{$i}"/>
+          <set_value name="$parameterKey" exact="'$' + $parameter"/>
+          <set_value name="$savedField" exact="$snap.$gtMK3.$params.{$parameterKey}"/>
+          <set_value name="$fieldMismatch" exact="false"/>
+          <do_if value="not $savedField? or not $savedField.$present? or not $savedField.$isNull?">
+            <set_value name="$fieldMismatch" exact="true"/>
+          </do_if>
+          <do_else>
+            <set_value name="$livePresent" exact="$order.{$parameterKey}?"/>
+            <set_value name="$liveValue" exact="if $livePresent then $order.{$parameterKey} else null"/>
+            <do_if value="$savedField.$present != $livePresent">
+              <set_value name="$fieldMismatch" exact="true"/>
+            </do_if>
+            <do_elseif value="$savedField.$isNull != ($liveValue == null)">
+              <set_value name="$fieldMismatch" exact="true"/>
+            </do_elseif>
+            <do_elseif value="$livePresent and $liveValue != null">
+              <do_if value="$savedField.$type == 'list' or $savedField.$type == 'internal'">
+                <do_if value="$savedField.$value.count != $liveValue.count">
+                  <set_value name="$fieldMismatch" exact="true"/>
+                </do_if>
+                <do_else>
+                  <do_all exact="$liveValue.count" counter="$j">
+                    <do_if value="$savedField.$value.{$j} != $liveValue.{$j}">
+                      <set_value name="$fieldMismatch" exact="true"/>
+                    </do_if>
+                  </do_all>
+                </do_else>
+              </do_if>
+              <do_else>
+                <do_if value="$savedField.$value != $liveValue">
+                  <set_value name="$fieldMismatch" exact="true"/>
+                </do_if>
+              </do_else>
+            </do_elseif>
+          </do_else>
+          <do_if value="$fieldMismatch">
+            <set_value name="$mismatches" exact="if $mismatches == '' then $parameter else $mismatches + ', ' + $parameter"/>
+          </do_if>
+        </do_all>
+        <do_if value="$mismatches == ''">
+          <run_actions ref="GUNPIRE_Log">
+            <param name="component" value="'GT-SNAPSHOT'"/>
+            <param name="message" value="'MATCH for ' + $ship.idcode + '; compared ' + $parameterNames.count + ' MK3 parameters'"/>
+          </run_actions>
+          <return value="true"/>
+        </do_if>
+        <run_actions ref="GUNPIRE_Log">
+          <param name="component" value="'GT-SNAPSHOT'"/>
+          <param name="message" value="'MISMATCH for ' + $ship.idcode + '; fields=' + $mismatches"/>
+        </run_actions>
+        <return value="false"/>
+      </actions>
+    </library>
+
+    <cue name="LMP_CompareGTMK3Snapshots_OnLoad" instantiate="true">
+      <conditions>
+        <event_game_loaded/>
+      </conditions>
+      <actions>
+        <do_if value="global.$LMP_Ships?">
+          <do_all exact="global.$LMP_Ships.keys.count" counter="$i">
+            <set_value name="$ship" exact="global.$LMP_Ships.keys.{$i}"/>
+            <do_if value="global.$LMP_Ships.{$ship}.$snapshot? and global.$LMP_Ships.{$ship}.$snapshot.$snapshotVersion == 2 and global.$LMP_Ships.{$ship}.$snapshot.$gtMK3?">
+              <run_actions ref="LMP_CompareGTMK3Snapshot">
+                <param name="ship" value="$ship"/>
+              </run_actions>
+            </do_if>
+          </do_all>
+        </do_if>
+      </actions>
+    </cue>
 
     <library name="LMP_RequestTakeover" purpose="run_actions">
       <params>
