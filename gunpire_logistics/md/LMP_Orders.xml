@@ -12,6 +12,16 @@
         <param name="job" default="'none'"/>
       </params>
       <actions>
+        <run_actions ref="GUNPIRE_LifecycleReadyForExecution" result="$lifecycleReady"/>
+        <do_if value="not $lifecycleReady">
+          <run_actions ref="GUNPIRE_Log">
+            <param name="level" value="0"/>
+            <param name="component" value="'ORDER'"/>
+            <param name="job" value="$job"/>
+            <param name="message" value="'Blocked: purchase-to-destination-deposit lifecycle is not verified'"/>
+          </run_actions>
+          <return value="false"/>
+        </do_if>
         <run_actions ref="GUNPIRE_AllowsRealOrders" result="$allows"/>
         <do_if value="not $allows">
           <run_actions ref="GUNPIRE_Log">
@@ -37,21 +47,48 @@
           </run_actions>
           <return value="false"/>
         </do_if>
-        <create_trade_order object="$ship" tradeoffer="$tradeoffer" amount="$amount" name="$order"/>
-        <do_if value="$order?">
+        <set_value name="$reservationKey" exact="'$' + $job"/>
+        <do_if value="not global.$LMP_Reservations.{$reservationKey}?">
           <run_actions ref="GUNPIRE_Log">
+            <param name="level" value="0"/>
             <param name="component" value="'ORDER'"/>
             <param name="job" value="$job"/>
-            <param name="message" value="'create_trade_order issued for ' + $ship.idcode + ' amount=' + $amount"/>
+            <param name="message" value="'Blocked: no reservation exists for this order'"/>
           </run_actions>
-          <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'PURCHASING'"/>
+          <return value="false"/>
+        </do_if>
+        <do_if value="global.$LMP_Reservations.{$reservationKey}.$ship != $ship">
+          <run_actions ref="GUNPIRE_Log">
+            <param name="level" value="0"/>
+            <param name="component" value="'ORDER'"/>
+            <param name="job" value="$job"/>
+            <param name="message" value="'Blocked: reservation belongs to a different ship'"/>
+          </run_actions>
+          <return value="false"/>
+        </do_if>
+        <set_value name="global.$LMP_Reservations.{$reservationKey}.$state" exact="'ORDER_CREATION_ATTEMPTED'"/>
+        <create_trade_order object="$ship" tradeoffer="$tradeoffer" amount="$amount" name="$order"/>
+        <do_if value="$order?">
+          <set_value name="global.$LMP_Ships.{$ship}.$order" exact="$order"/>
           <set_value name="global.$LMP_Ships.{$ship}.$job" exact="$job"/>
+          <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'TRADE_QUEUED'"/>
+          <set_value name="global.$LMP_Reservations.{$reservationKey}.$order" exact="$order"/>
+          <set_value name="global.$LMP_Reservations.{$reservationKey}.$state" exact="'TRADE_QUEUED'"/>
+          <run_actions ref="GUNPIRE_Log">
+            <param name="level" value="0"/>
+            <param name="component" value="'ORDER'"/>
+            <param name="job" value="$job"/>
+            <param name="message" value="'create_trade_order queued for ' + $ship.idcode + ' amount=' + $amount + '; purchase and destination deposit are not confirmed'"/>
+          </run_actions>
           <return value="true"/>
         </do_if>
+        <set_value name="global.$LMP_Reservations.{$reservationKey}.$state" exact="'RECONCILIATION_REQUIRED'"/>
+        <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'RECONCILIATION_REQUIRED'"/>
         <run_actions ref="GUNPIRE_Log">
+          <param name="level" value="0"/>
           <param name="component" value="'ORDER'"/>
           <param name="job" value="$job"/>
-          <param name="message" value="'create_trade_order failed for ' + $ship.idcode"/>
+          <param name="message" value="'create_trade_order result uncertain for ' + $ship.idcode + '; reservation retained for safe reconciliation'"/>
         </run_actions>
         <return value="false"/>
       </actions>

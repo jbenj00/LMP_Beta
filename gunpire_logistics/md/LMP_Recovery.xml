@@ -10,74 +10,80 @@
           <do_all exact="global.$LMP_Ships.keys.count" counter="$i">
             <set_value name="$ship" exact="global.$LMP_Ships.keys.{$i}"/>
             <do_if value="not $ship.exists">
-              <run_actions ref="LMP_Release">
-                <param name="job" value="if global.$LMP_Ships.{$ship}.$job? then global.$LMP_Ships.{$ship}.$job else 'missing'"/>
-              </run_actions>
-              <remove_value name="global.$LMP_Ships.{$ship}"/>
+              <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'SHIP_MISSING_RECONCILIATION_REQUIRED'"/>
               <run_actions ref="GUNPIRE_Log">
+                <param name="level" value="0"/>
                 <param name="component" value="'RECOVERY'"/>
-                <param name="message" value="'Removed missing ship on load'"/>
+                <param name="job" value="if global.$LMP_Ships.{$ship}.$job? then global.$LMP_Ships.{$ship}.$job else ''"/>
+                <param name="message" value="'Ship missing on load; record and reservations retained for safe reconciliation'"/>
               </run_actions>
             </do_if>
-            <do_else>
-              <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'REEVALUATING'"/>
+            <do_elseif value="global.$LMP_Ships.{$ship}.$job? and global.$LMP_Ships.{$ship}.$job != ''">
+              <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'RECOVERY_REQUIRED'"/>
               <run_actions ref="GUNPIRE_Log">
+                <param name="level" value="0"/>
                 <param name="component" value="'RECOVERY'"/>
-                <param name="message" value="'Reconciled ' + $ship.idcode + ' to REEVALUATING'"/>
+                <param name="job" value="global.$LMP_Ships.{$ship}.$job"/>
+                <param name="message" value="'Save/load requires order, cargo, and destination reconciliation; job and reservation retained for ' + $ship.idcode"/>
               </run_actions>
-            </do_else>
+            </do_elseif>
           </do_all>
         </do_if>
       </actions>
     </cue>
 
-    <!-- Trade completion: release reservation and mark reevaluate -->
+    <!-- A completed trade is not proof of destination deposit. -->
     <cue name="LMP_OnTradeCompleted" instantiate="true">
       <conditions>
-        <event_trade_completed object="player.galaxy"/>
+        <event_trade_completed space="player.galaxy"/>
       </conditions>
       <actions>
-        <do_if value="event.param2? and event.param2.exists">
-          <set_value name="$order" exact="event.param2"/>
-          <do_if value="$order.object? and global.$LMP_Ships.{$order.object}?">
-            <set_value name="$ship" exact="$order.object"/>
-            <set_value name="$job" exact="if global.$LMP_Ships.{$ship}.$job? then global.$LMP_Ships.{$ship}.$job else ''"/>
-            <do_if value="$job != ''">
-              <run_actions ref="LMP_Release">
-                <param name="job" value="$job"/>
-              </run_actions>
+        <set_value name="$matched" exact="false"/>
+        <do_if value="event.param2? and event.param2.exists and global.$LMP_Ships?">
+          <set_value name="$eventOrder" exact="event.param2"/>
+          <do_all exact="global.$LMP_Ships.keys.count" counter="$i">
+            <set_value name="$ship" exact="global.$LMP_Ships.keys.{$i}"/>
+            <do_if value="global.$LMP_Ships.{$ship}.$order? and global.$LMP_Ships.{$ship}.$order == $eventOrder">
+              <set_value name="$job" exact="if global.$LMP_Ships.{$ship}.$job? then global.$LMP_Ships.{$ship}.$job else ''"/>
+              <set_value name="$key" exact="'$' + $job"/>
+              <do_if value="$job != '' and global.$LMP_Reservations?">
+                <do_if value="global.$LMP_Reservations.{$key}?">
+                  <do_if value="global.$LMP_Reservations.{$key}.$ship == $ship and global.$LMP_Reservations.{$key}.$job == $job and global.$LMP_Reservations.{$key}.$order == $eventOrder">
+                    <set_value name="global.$LMP_Reservations.{$key}.$state" exact="'TRADE_COMPLETED_AWAITING_DEPOSIT_CONFIRMATION'"/>
+                    <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'AWAITING_DEPOSIT_CONFIRMATION'"/>
+                    <set_value name="$matched" exact="true"/>
+                    <run_actions ref="GUNPIRE_Log">
+                      <param name="level" value="0"/>
+                      <param name="component" value="'RECOVERY'"/>
+                      <param name="job" value="$job"/>
+                      <param name="message" value="'Matched trade completion to stored ship/order/job; reservation retained pending destination deposit confirmation'"/>
+                    </run_actions>
+                  </do_if>
+                </do_if>
+              </do_if>
             </do_if>
-            <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'REEVALUATING'"/>
-            <set_value name="global.$LMP_Ships.{$ship}.$job" exact="null"/>
-            <run_actions ref="GUNPIRE_Log">
-              <param name="component" value="'RECOVERY'"/>
-              <param name="message" value="'Trade completed for ' + $ship.idcode + '; reservation released'"/>
-            </run_actions>
-          </do_if>
+          </do_all>
+        </do_if>
+        <do_if value="not $matched">
+          <run_actions ref="GUNPIRE_Log">
+            <param name="level" value="0"/>
+            <param name="component" value="'RECOVERY'"/>
+            <param name="message" value="'Unmatched trade completion ignored; no reservation released'"/>
+          </run_actions>
         </do_if>
       </actions>
     </cue>
 
     <cue name="LMP_OnTradeCancelled" instantiate="true">
       <conditions>
-        <event_trade_cancelled object="player.galaxy"/>
+        <event_trade_cancelled space="player.galaxy"/>
       </conditions>
       <actions>
-        <do_if value="event.param2? and event.param2.exists and event.param2.object? and global.$LMP_Ships.{event.param2.object}?">
-          <set_value name="$ship" exact="event.param2.object"/>
-          <set_value name="$job" exact="if global.$LMP_Ships.{$ship}.$job? then global.$LMP_Ships.{$ship}.$job else ''"/>
-          <do_if value="$job != ''">
-            <run_actions ref="LMP_Release">
-              <param name="job" value="$job"/>
-            </run_actions>
-          </do_if>
-          <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'REEVALUATING'"/>
-          <set_value name="global.$LMP_Ships.{$ship}.$job" exact="null"/>
-          <run_actions ref="GUNPIRE_Log">
-            <param name="component" value="'RECOVERY'"/>
-            <param name="message" value="'Trade cancelled for ' + $ship.idcode + '; reservation released'"/>
-          </run_actions>
-        </do_if>
+        <run_actions ref="GUNPIRE_Log">
+          <param name="level" value="0"/>
+          <param name="component" value="'RECOVERY'"/>
+          <param name="message" value="'Trade cancellation observed; event supplies a tradeoffer, not the originating ship/job/order; reservations retained for safe reconciliation'"/>
+        </run_actions>
       </actions>
     </cue>
   </cues>

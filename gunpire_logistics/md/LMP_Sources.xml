@@ -10,9 +10,7 @@
         <param name="filter" default="'both'"/>
       </params>
       <actions>
-        <find_sell_offer result="$offers" multiple="true" tradepartner="$ship" space="player.galaxy" excludeempty="true" usereservations="true">
-          <match_ware ware="$ware"/>
-        </find_sell_offer>
+        <find_sell_offer result="$offers" multiple="true" tradepartner="$ship" space="player.galaxy" excludeempty="true" usereservations="true" wares="$ware"/>
         <set_value name="$filtered" exact="[]"/>
         <do_if value="$offers?">
           <do_all exact="$offers.count" counter="$i">
