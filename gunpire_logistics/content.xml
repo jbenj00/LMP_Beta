@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<content id="GUNPIRE_Logistics" name="GUNPIRE Logistics" description="Autonomous construction logistics dispatcher" author="GUNPIRE" version="100" date="2026-11-10" save="0" enabled="1">
+  <text language="44" name="GUNPIRE Logistics" description="Autonomous construction logistics dispatcher" author="GUNPIRE" />
+  <text language="49" name="GUNPIRE Logistics" description="Autonomous construction logistics dispatcher" author="GUNPIRE" />
+
+  <dependency version="900" optional="false" name="X4: Foundations 9.00" />
+  <dependency id="ws_2042901274" optional="false" name="SirNukes Mod Support APIs" />
+  <dependency id="kuerteeUIExtensionsAndHUD" optional="false" name="kuertee UI Extensions and HUD" />
+  <dependency id="GalaxyTraderMK3" optional="true" name="GalaxyTrader MK3" />
+</content>

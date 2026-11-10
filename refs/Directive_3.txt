@@ -1,0 +1,21 @@
+Continue development. Do not stop at the current scaffolding stage.
+
+You have the X4 9.00 scripting reference pack, extracted source index, integration references, and existing project files.
+
+Your immediate task is to resolve the remaining technical blockers yourself.
+
+1. Inspect the original X4 schemas, script properties, and relevant vanilla implementation files to identify actual construction-storage demand, trade order, ship behavior snapshot, and restoration mechanisms.
+2. Inspect Galaxy Trader source to determine whether a cooperative handoff is possible without permanently removing the ship from its automation or resetting progression.
+3. Record each verified API, source location, expected inputs, and limitations in the integration map.
+4. Implement all safely supported functionality using the existing modular production architecture.
+5. Keep unverified or unsafe operations behind hard gates; do not substitute fabricated functions or placeholder success paths.
+6. Run available XML/schema and integration validation.
+7. Continue implementing independent components while resolving blocked integrations.
+
+The objective remains the complete working mod, not a static skeleton.
+
+Do not ask me to perform research already supported by the reference files. Do not declare a feature complete until its actual behavior is implemented.
+
+Report genuine engine limitations separately from missing research. If an API is absent from schemas, inspect vanilla usage before determining the feature is impossible.
+
+Proceed with implementation now.

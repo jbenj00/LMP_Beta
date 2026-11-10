@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mdscript name="LMP_ShipRegistry" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../x4_scripting_ref/schemas/md.xsd">
+  <cues>
+    <cue name="LMP_ShipRegistry_Init" instantiate="true">
+      <conditions>
+        <event_game_loaded/>
+      </conditions>
+      <actions>
+        <do_if value="not global.$LMP_Ships?">
+          <set_value name="global.$LMP_Ships" exact="table[]"/>
+        </do_if>
+        <run_actions ref="GUNPIRE_Log">
+          <param name="component" value="'FLEET'"/>
+          <param name="message" value="'Ship registry ready. Count=' + global.$LMP_Ships.keys.count"/>
+        </run_actions>
+      </actions>
+    </cue>
+
+    <library name="LMP_EnrollShip" purpose="run_actions">
+      <params>
+        <param name="ship"/>
+        <param name="role" default="'ACTIVE'"/>
+      </params>
+      <actions>
+        <do_if value="not $ship? or not $ship.exists or $ship.owner != faction.player">
+          <run_actions ref="GUNPIRE_Log">
+            <param name="component" value="'FLEET'"/>
+            <param name="message" value="'Enrollment rejected: invalid or non-player ship'"/>
+          </run_actions>
+          <return value="false"/>
+        </do_if>
+        <!-- Feature gate: max controlled ships -->
+        <run_actions ref="GUNPIRE_MaxControlledShips" result="$max"/>
+        <do_if value="global.$LMP_Ships.keys.count ge $max and not global.$LMP_Ships.{$ship}?">
+          <run_actions ref="GUNPIRE_Log">
+            <param name="component" value="'FLEET'"/>
+            <param name="message" value="'Enrollment rejected: profile ship limit reached'"/>
+          </run_actions>
+          <return value="false"/>
+        </do_if>
+        <do_if value="not global.$LMP_Ships.{$ship}?">
+          <set_value name="global.$LMP_Ships.{$ship}" exact="table[]"/>
+          <set_value name="global.$LMP_Ships.{$ship}.$role" exact="$role"/>
+          <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'NORMAL'"/>
+          <set_value name="global.$LMP_Ships.{$ship}.$snapshot" exact="null"/>
+          <set_value name="global.$LMP_Ships.{$ship}.$job" exact="null"/>
+        </do_if>
+        <run_actions ref="GUNPIRE_Log">
+          <param name="component" value="'FLEET'"/>
+          <param name="message" value="'Enrolled ' + $ship.idcode + ' role=' + $role"/>
+        </run_actions>
+        <return value="true"/>
+      </actions>
+    </library>
+
+    <library name="LMP_IsEnrolled" purpose="run_actions">
+      <params>
+        <param name="ship"/>
+      </params>
+      <actions>
+        <return value="global.$LMP_Ships? and global.$LMP_Ships.{$ship}?"/>
+      </actions>
+    </library>
+  </cues>
+</mdscript>

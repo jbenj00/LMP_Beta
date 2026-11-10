@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mdscript name="LMP_Reservations" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../x4_scripting_ref/schemas/md.xsd">
+  <cues>
+    <cue name="LMP_Reservations_Init" instantiate="true">
+      <conditions>
+        <event_game_loaded/>
+      </conditions>
+      <actions>
+        <do_if value="not global.$LMP_Reservations?">
+          <set_value name="global.$LMP_Reservations" exact="table[]"/>
+        </do_if>
+        <run_actions ref="GUNPIRE_Log">
+          <param name="component" value="'RESERVE'"/>
+          <param name="message" value="'Reservation ledger ready'"/>
+        </run_actions>
+      </actions>
+    </cue>
+
+    <library name="LMP_Reserve" purpose="run_actions">
+      <params>
+        <param name="ship"/>
+        <param name="site"/>
+        <param name="ware"/>
+        <param name="qty"/>
+        <param name="job" default="'none'"/>
+      </params>
+      <actions>
+        <do_if value="not global.$GUNPIRE_Safety.$enforce_reservations">
+          <return value="false"/>
+        </do_if>
+        <set_value name="$key" exact="'$' + $job"/>
+        <set_value name="global.$LMP_Reservations.{$key}" exact="table[]"/>
+        <set_value name="global.$LMP_Reservations.{$key}.$ship" exact="$ship"/>
+        <set_value name="global.$LMP_Reservations.{$key}.$site" exact="$site"/>
+        <set_value name="global.$LMP_Reservations.{$key}.$ware" exact="$ware"/>
+        <set_value name="global.$LMP_Reservations.{$key}.$qty" exact="$qty"/>
+        <set_value name="global.$LMP_Reservations.{$key}.$state" exact="'RESERVED'"/>
+        <run_actions ref="GUNPIRE_Log">
+          <param name="component" value="'RESERVE'"/>
+          <param name="job" value="$job"/>
+          <param name="message" value="'Reserved ' + $qty + ' of ware for ' + (if $ship? then $ship.idcode else 'null')"/>
+        </run_actions>
+        <return value="true"/>
+      </actions>
+    </library>
+
+    <library name="LMP_Release" purpose="run_actions">
+      <params>
+        <param name="job"/>
+      </params>
+      <actions>
+        <set_value name="$key" exact="'$' + $job"/>
+        <do_if value="global.$LMP_Reservations.{$key}?">
+          <remove_value name="global.$LMP_Reservations.{$key}"/>
+          <run_actions ref="GUNPIRE_Log">
+            <param name="component" value="'RESERVE'"/>
+            <param name="job" value="$job"/>
+            <param name="message" value="'Released reservation'"/>
+          </run_actions>
+        </do_if>
+        <return value="true"/>
+      </actions>
+    </library>
+  </cues>
+</mdscript>

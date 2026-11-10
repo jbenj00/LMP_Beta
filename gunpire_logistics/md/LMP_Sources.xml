@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mdscript name="LMP_Sources" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../x4_scripting_ref/schemas/md.xsd">
+  <cues>
+    <!-- Uses verified find_sell_offer (common.xsd ~28283).
+         Returns actual trade offers, not raw stations. -->
+    <library name="LMP_FindSellOffers" purpose="run_actions">
+      <params>
+        <param name="ship"/>
+        <param name="ware"/>
+        <param name="filter" default="'both'"/>
+      </params>
+      <actions>
+        <find_sell_offer result="$offers" multiple="true" tradepartner="$ship" space="player.galaxy" excludeempty="true" usereservations="true">
+          <match_ware ware="$ware"/>
+        </find_sell_offer>
+        <set_value name="$filtered" exact="[]"/>
+        <do_if value="$offers?">
+          <do_all exact="$offers.count" counter="$i">
+            <set_value name="$off" exact="$offers.{$i}"/>
+            <do_if value="not $off.exists or not $off.seller?">
+              <continue/>
+            </do_if>
+            <do_if value="$filter == 'player' and $off.seller.owner != faction.player">
+              <continue/>
+            </do_if>
+            <do_if value="$filter == 'npc' and $off.seller.owner == faction.player">
+              <continue/>
+            </do_if>
+            <append_to_list name="$filtered" exact="$off"/>
+          </do_all>
+        </do_if>
+        <run_actions ref="GUNPIRE_Log">
+          <param name="component" value="'SOURCE'"/>
+          <param name="message" value="'find_sell_offer returned ' + $filtered.count + ' valid offers (filter=' + $filter + ')'"/>
+        </run_actions>
+        <return value="$filtered"/>
+      </actions>
+    </library>
+  </cues>
+</mdscript>

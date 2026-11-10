@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mdscript name="LMP_Demand" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../x4_scripting_ref/schemas/md.xsd">
+  <cues>
+    <cue name="LMP_Demand_Init" instantiate="true">
+      <conditions>
+        <event_game_loaded/>
+      </conditions>
+      <actions>
+        <do_if value="not global.$LMP_Demand?">
+          <set_value name="global.$LMP_Demand" exact="table[]"/>
+        </do_if>
+        <do_if value="not global.$LMP_Shortages?">
+          <set_value name="global.$LMP_Shortages" exact="table[]"/>
+        </do_if>
+        <run_actions ref="GUNPIRE_Log">
+          <param name="component" value="'DEMAND'"/>
+          <param name="message" value="'Demand and shortage ledgers initialized'"/>
+        </run_actions>
+      </actions>
+    </cue>
+
+    <library name="LMP_ScanBuildStorages" purpose="run_actions">
+      <actions>
+        <set_value name="global.$LMP_Demand" exact="table[]"/>
+        <set_value name="global.$LMP_Shortages" exact="table[]"/>
+        <find_station name="$stations" space="player.galaxy" owner="faction.player" multiple="true"/>
+        <do_all exact="$stations.count" counter="$i">
+          <set_value name="$st" exact="$stations.{$i}"/>
+          <do_if value="$st.buildstorage? and $st.buildstorage.exists">
+            <set_value name="$bs" exact="$st.buildstorage"/>
+            <set_value name="$key" exact="'$' + $bs.idcode"/>
+            <set_value name="global.$LMP_Demand.{$key}" exact="table[]"/>
+            <set_value name="global.$LMP_Demand.{$key}.$station" exact="$st"/>
+            <set_value name="global.$LMP_Demand.{$key}.$buildstorage" exact="$bs"/>
+            <!-- Attempt shortage from planned construction when present -->
+            <do_if value="$st.hasplannedconstruction? and $st.hasplannedconstruction and $st.plannedconstruction.sequence?">
+              <set_value name="$seq" exact="$st.plannedconstruction.sequence"/>
+              <do_if value="$st.neededbuildresources.{$seq}?">
+                <set_value name="$needed" exact="$st.neededbuildresources.{$seq}"/>
+                <do_if value="$needed.count gt 0">
+                  <do_all exact="$needed.count" counter="$w">
+                    <set_value name="$ware" exact="$needed.{$w}"/>
+                    <set_value name="$amt" exact="$needed.{$ware}.count"/>
+                    <do_if value="$amt gt 0">
+                      <set_value name="$sk" exact="'$' + $bs.idcode + '_' + $ware"/>
+                      <set_value name="global.$LMP_Shortages.{$sk}" exact="table[]"/>
+                      <set_value name="global.$LMP_Shortages.{$sk}.$site" exact="$bs"/>
+                      <set_value name="global.$LMP_Shortages.{$sk}.$ware" exact="$ware"/>
+                      <set_value name="global.$LMP_Shortages.{$sk}.$qty" exact="$amt"/>
+                      <set_value name="global.$LMP_Shortages.{$sk}.$priority" exact="50"/>
+                    </do_if>
+                  </do_all>
+                  <run_actions ref="GUNPIRE_Log">
+                    <param name="component" value="'DEMAND'"/>
+                    <param name="message" value="'Recorded ' + $needed.count + ' shortage wares for ' + $st.name"/>
+                  </run_actions>
+                </do_if>
+              </do_if>
+            </do_if>
+            <run_actions ref="GUNPIRE_Log">
+              <param name="component" value="'DEMAND'"/>
+              <param name="message" value="'Tracked buildstorage ' + $bs.idcode"/>
+            </run_actions>
+          </do_if>
+        </do_all>
+        <return value="global.$LMP_Demand"/>
+      </actions>
+    </library>
+  </cues>
+</mdscript>

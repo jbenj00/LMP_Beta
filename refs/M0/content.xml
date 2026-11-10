@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<content id="GUNPIRE_Logistics" name="GUNPIRE Logistics - M0 Diagnostics" description="Read-only Galaxy Trader compatibility diagnostics for X4 9.00. No ship control, no trade orders." author="GUNPIRE" version="1" date="2026-11-09" save="0" enabled="1">
+  <dependency version="900" optional="false" name="X4: Foundations 9.00" />
+  <dependency id="GalaxyTraderMK3" optional="true" name="Galaxy Trader 1.0.4" />
+</content>

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mdscript name="LMP_M0_Diagnostics" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../stock_game/X4 Foundations/libraries/md.xsd">
+  <cues>
+    <!-- Read-only startup check. No global mutations or ship orders. -->
+    <cue name="Boot" instantiate="true">
+      <conditions>
+        <check_any>
+          <event_player_created/>
+          <event_game_loaded/>
+        </check_any>
+      </conditions>
+      <actions>
+        <debug_text text="'[LMP][INFO] M0 diagnostics active: read-only; no ship takeover or trade orders'" chance="100"/>
+        <do_if value="global.$GT_ProtectedOrderIDs?">
+          <debug_text text="'[LMP][INFO] Galaxy Trader detected; protected GT order IDs=' + global.$GT_ProtectedOrderIDs.count" chance="100"/>
+        </do_if>
+        <do_else>
+          <debug_text text="'[LMP][WARN] Galaxy Trader protected order registry not yet present at boot (may initialize later)'" chance="100"/>
+        </do_else>
+      </actions>
+    </cue>
+
+    <!-- Observe GT's existing lifecycle signals; never respond by issuing orders. -->
+    <cue name="ObserveGTPause" instantiate="true">
+      <conditions>
+        <event_object_signalled object="player.galaxy" param="'GT_Ship_Order_Paused'"/>
+      </conditions>
+      <actions>
+        <do_if value="event.param2? and event.param2.$Ship?">
+          <set_value name="$ship" exact="event.param2.$Ship"/>
+          <do_if value="$ship? and $ship.exists">
+            <debug_text text="'[LMP][GT-EVENT] PAUSED ship=' + $ship.idcode + ' reason=' + (if event.param2.$Reason? then event.param2.$Reason else 'unspecified')" chance="100"/>
+          </do_if>
+        </do_if>
+      </actions>
+    </cue>
+
+    <cue name="ObserveGTAbort" instantiate="true">
+      <conditions>
+        <event_object_signalled object="player.galaxy" param="'GT_Ship_Order_Aborted'"/>
+      </conditions>
+      <actions>
+        <do_if value="event.param2? and event.param2.$Ship?">
+          <set_value name="$ship" exact="event.param2.$Ship"/>
+          <do_if value="$ship? and $ship.exists">
+            <debug_text text="'[LMP][GT-EVENT] ABORTED ship=' + $ship.idcode + ' reason=' + (if event.param2.$Reason? then event.param2.$Reason else 'unspecified')" chance="100"/>
+          </do_if>
+        </do_if>
+      </actions>
+    </cue>
+  </cues>
+</mdscript>

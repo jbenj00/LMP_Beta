@@ -1,0 +1,16 @@
+GUNPIRE Logistics M0 — static validation report
+Date: 2026-11-09
+
+PASS: content.xml parses as well-formed XML.
+PASS: md/LMP_M0_Diagnostics.xml parses as well-formed XML.
+PASS: All MD XML element names used by diagnostics exist in supplied X4 9.00 md.xsd/common.xsd.
+PASS: GTA 1.0.4 source files referenced by GT_HANDOFF_DECISION.md are present in the user's reference archive.
+PASS: M0 MD contains no trade-creation, order-cancellation, commander-change, or GT-state-table mutation actions.
+
+NOT VERIFIED: Full md.xsd schema compilation/validation timed out in this container. No full-XSD PASS is claimed.
+NOT VERIFIED: Mod enabled/loaded by the installed X4 9.00 game.
+NOT VERIFIED: Diagnostic log entry appearance under -logfile/-debug arguments.
+NOT VERIFIED: PowerShell script execution (PowerShell is unavailable in this container).
+NOT VERIFIED: GT recovery behavior, temporary takeover, or any trade order behavior.
+
+SAFETY: This is a read-only M0 logging extension, not an automated trader. Use a copy of the save for further M1 tests.

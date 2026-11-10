@@ -1,0 +1,530 @@
+GUNPIRE Logistics — Complete Mod Development Directive
+
+You are the lead developer, architect, debugger, and technical reviewer for GUNPIRE Logistics, a native X4: Foundations logistics automation mod.
+
+Your assignment is to build the entire mod from the existing project materials, implementation roadmap, source references, and current codebase.
+
+You are responsible for implementing, integrating, validating, debugging, and delivering the complete project—not merely providing plans, pseudocode, architectural recommendations, or partial demonstrations.
+
+1. Development environment
+
+- Game: X4: Foundations 9.00
+- Installation: Heavily modded X4 Rebirth(ed) collection
+- Development environment: Windows 11, X4 Forge Studio, Claude Code
+- Technologies: Mission Director XML, X4 AI scripts, Lua UI, PowerShell diagnostics
+- Target: Existing saves and existing third-party trading automation
+- Project: GUNPIRE Logistics
+
+Work directly in the existing project workspace. Inspect its files, tooling, history, dependencies, and current implementation before changing anything.
+
+Do not build a separate AI orchestration system. Do not integrate local language models. You are the developer.
+
+2. Source of truth
+
+Read the following project materials where available:
+
+1. "GUNPIRE_Logistics_Mod_Project_Scope.md"
+2. "GUNPIRE_Logistics_Implementation_Roadmap.md"
+3. "01_GUNPIRE_Integration_Reference.md"
+4. "02_UI_and_Support_APIs.md"
+5. "03_Extracted_Source_Index.md"
+6. "X4_Scripting_Reference.html"
+7. "GUNPIRE_Mod_Reference_Pack.zip"
+8. Existing GUNPIRE Diagnostics M0 package and current project source
+
+Find renamed or revision-suffixed equivalents where necessary.
+
+Apply the following precedence:
+
+1. Explicitly approved project scope and subsequent user decisions
+2. Implementation roadmap
+3. Verified installed X4 9.00 scripting interfaces
+4. Verified third-party source code
+5. Existing implementation
+6. Your proposed solutions
+
+If two sources conflict, record the conflict and follow the most recent confirmed requirement. Do not silently change functionality.
+
+Do not interpret a planning document as proof that a feature is implemented or tested.
+
+3. Project objective
+
+Develop an intelligent, autonomous construction logistics dispatcher that uses player-authorized ships to supply construction storage throughout the X4 universe.
+
+The player controls fleet eligibility, operating modes, priorities, and restrictions.
+
+GUNPIRE handles:
+
+- Construction demand detection
+- Supplier discovery
+- Ship matching
+- Cargo and ware reservations
+- Trade execution
+- Delivery scheduling
+- Fleet distribution
+- Supply shortage management
+- Safe temporary ship takeover
+- Original behavior restoration
+- Failure recovery
+- Save/load persistence
+- Operational visibility
+
+The system must operate without constant player intervention.
+
+Core objective: minimal micromanagement, maximum autonomy, dependable behavior.
+
+4. Required operational modes
+
+Active — Construction Surge
+
+Temporarily borrow eligible player-selected ships from existing automation.
+
+Supported origins should include, where safely verified:
+
+- Galaxy Trader MK3
+- Vanilla automatic traders
+- Station-assigned traders
+- Fleet/subordinate traders
+
+Requirements:
+
+- Never interrupt a ship with active trade cargo or outstanding commitments.
+- Wait until the ship is genuinely eligible.
+- Snapshot its existing behavior and assignment before takeover.
+- Transfer control to GUNPIRE only after snapshot validation.
+- Complete bounded construction deliveries.
+- Reevaluate requirements after every completed job.
+- Restore the original automation when released.
+- Preserve pilot progression, trader settings, fleet membership, and assignment.
+
+If an origin cannot be restored reliably, exclude that ship type or assignment from automatic takeover until supported.
+
+Passive — Autonomous Construction Supply
+
+Use dedicated GUNPIRE ships to continuously satisfy construction shortages.
+
+Requirements:
+
+- Discover unsatisfied construction demand.
+- Prioritize actual need rather than trade profitability.
+- Reevaluate sites dynamically.
+- Increase priority for sites waiting unusually long.
+- Avoid starvation of low-priority sites.
+- Remain autonomous across repeated deliveries.
+- Respect player restrictions.
+
+Intelligent Surge
+
+Implement the approved construction urgency and ship-class distribution system.
+
+- Prioritize materials required by the next construction module where safely detectable.
+- Match S/M ships to small urgent deliveries.
+- Match L/XL ships to substantial bulk shortages.
+- Avoid wasting large freighters on trivial quantities.
+- Respect cargo capacity and operating geography.
+- Keep the fleet dynamically allocated rather than permanently assigning every ship to one site.
+
+If construction queue inspection is not exposed through a verified API, implement the safest documented fallback and clearly identify the limitation.
+
+5. Critical ship safety contract
+
+This section overrides convenience and optimization.
+
+Before taking control of any ship:
+
+1. Confirm explicit enrollment.
+2. Confirm the ship remains player-owned and valid.
+3. Confirm it has no active trade cargo.
+4. Confirm no unresolved trade, transfer, or reservation commitments.
+5. Capture its original default behavior and parameters.
+6. Capture relevant commander, subordinate, home, and range relationships.
+7. Capture the required settings for restoring its prior automation.
+8. Persist a restoration record.
+9. Validate that the restoration information is sufficient.
+10. Only then initiate takeover.
+
+Never blindly clear orders.
+
+Never directly overwrite Galaxy Trader progression tables to simulate restoration.
+
+On release:
+
+- Allow an already loaded GUNPIRE delivery to finish safely.
+- Prevent new allocations.
+- Release GUNPIRE reservations.
+- Restore the original automation and assignment.
+- Verify restored state.
+- Preserve recovery data when verification fails.
+
+Implement a visible "RESTORE_REQUIRED" condition instead of silently issuing a generic idle order when restoration cannot be established.
+
+Account for manual player intervention, destroyed ships, missing stations, changed commanders, failed purchases, and save/reload.
+
+6. Dynamic logistics scheduler
+
+Build a shared scheduler serving all active construction sites.
+
+Required capabilities:
+
+- Detect construction storage and outstanding ware demand.
+- Read on-hand quantities.
+- Account for inbound commitments.
+- Maintain a separate GUNPIRE reservation ledger.
+- Prevent double allocation.
+- Discover valid suppliers.
+- Verify supplier stock and prices.
+- Respect source restrictions.
+- Match ships by cargo capacity and distance.
+- Prioritize site urgency, shortage severity, and waiting time.
+- Prevent permanent site starvation.
+- Recover from failed or invalidated routes.
+- Reevaluate after delivery.
+
+Supported destination selection:
+
+- All construction storages
+- Targeted construction storage
+- Closest eligible construction storage
+
+Supported sourcing:
+
+- Player-owned suppliers only
+- Non-player suppliers only
+- Both
+
+Supported optimization preferences:
+
+- Distance versus purchase cost
+- Closest supplier to ship
+- Closest supplier to destination
+- Relevant construction urgency
+
+One committed bounded job per ship at a time.
+
+Do not create endless static trade-order queues.
+
+Multi-stop optimization is secondary to proving single-delivery reliability.
+
+7. Reservation integrity
+
+Implement persistent reservation tracking for:
+
+- Ship
+- Supplier
+- Destination
+- Ware
+- Quantity
+- Job
+- Reservation state
+
+Prevent duplicated commitments, including those caused by:
+
+- Concurrent scheduling
+- Repeated dispatcher execution
+- Save/load
+- Interrupted transfers
+- Supplier stock changes
+- Ship destruction
+- Destination completion
+- Manual intervention
+
+Do not assume externally reported incoming quantities are independent of GUNPIRE reservations.
+
+Verify their semantics before calculating net shortages.
+
+Use idempotent state transitions and explicit reservation cleanup.
+
+8. Compatibility requirements
+
+Inspect the actual installed implementations of:
+
+- Galaxy Trader MK3 1.0.4
+- Kuertee UI Extensions and HUD
+- SirNukes Mod Support APIs 1.95
+- Relevant vanilla X4 AI and Mission Director scripts
+
+Galaxy Trader maintains its own ship and pilot state, order monitoring, reservation tracking, and automation lifecycle.
+
+Its order cancellation and commander events are especially relevant.
+
+Review the supplied integration reference and underlying source files.
+
+Prioritize identifying a safe cooperative release/resume mechanism.
+
+Do not modify third-party extension files unless absolutely necessary and explicitly justified.
+
+Keep compatibility adapters isolated and namespaced.
+
+Do not claim compatibility from XML validity alone.
+
+9. User interface
+
+Create a practical, compact, native X4 interface consistent with the approved scope.
+
+Provide controls for:
+
+- Enrolling and removing ships
+- Active/Passive mode selection
+- Enabling/disabling GUNPIRE
+- Construction site selection
+- Relative site priorities
+- Source restrictions
+- Cost/distance preferences
+- Operating restrictions
+- Fleet status
+- Active jobs
+- Blocked ships
+- Restoration failures
+- Diagnostics
+
+Default site priority is 50%, representing relative priority weight—not mandatory allocation of half the fleet.
+
+Avoid configuration-heavy designs.
+
+Use verified Lua UI and MD bridge mechanisms, preserving compatibility with Kuertee and SirNukes.
+
+Do not substitute an external mockup for an operational in-game UI.
+
+10. Persistence and recovery
+
+GUNPIRE must survive normal save/load behavior without losing track of controlled ships or active commitments.
+
+Persist the necessary data for:
+
+- Enrollment
+- Settings
+- Ship state
+- Restoration snapshots
+- Active jobs
+- Reservations
+- Construction priorities
+- Recovery conditions
+
+On load, reconcile saved records against actual game state before issuing new orders.
+
+Do not blindly replay previous commands.
+
+Preserve existing cue identities wherever save compatibility requires it.
+
+Implement versioned state migration when changing persistent structure.
+
+11. Performance engineering
+
+This system must be suitable for large fleets and heavily modded games.
+
+Requirements:
+
+- Prefer event-driven wakeups.
+- Use bounded periodic reconciliation only where needed.
+- Cache expensive information when safe.
+- Invalidate stale data correctly.
+- Avoid unnecessary galaxy-wide scanning.
+- Avoid per-frame polling.
+- Avoid unnecessary per-ship loops.
+- Keep logging configurable.
+- Never trade correctness for an unverified optimization.
+
+Measure performance where tools and runtime conditions permit.
+
+12. Development milestones
+
+Follow the existing roadmap, rather than inventing a replacement.
+
+M0 — Diagnostics and extension foundation
+
+Ensure extension startup, structured logging, and two independent PowerShell monitoring consoles operate correctly.
+
+M1 — Safe takeover and restoration
+
+Implement and validate complete snapshot, temporary control, and restoration for supported ships.
+
+M2 — Demand and reservations
+
+Implement construction shortage discovery, ledger integrity, and reservation reconciliation.
+
+M3 — First real delivery
+
+Complete a genuine purchase-to-construction-storage delivery and restore the ship afterward.
+
+M4 — Shared dispatcher
+
+Implement dynamic multi-ship scheduling, prioritization, and safe job allocation.
+
+M5 — Passive autonomy
+
+Implement autonomous shortage fulfillment and fairness.
+
+M6 — Intelligent Surge
+
+Implement construction urgency, ship-class matching, and appropriate delivery optimization.
+
+M7 — Native UI
+
+Implement complete player controls and fleet visibility.
+
+M8 — Recovery, compatibility, and release hardening
+
+Complete persistence, failure handling, validation, regression tests, and packaging.
+
+Use the exact milestone definitions and exit criteria from the supplied roadmap where they provide greater detail.
+
+13. Implementation method
+
+Work directly on the real source files.
+
+For every milestone:
+
+1. Inspect relevant existing code.
+2. Identify actual supported engine interfaces.
+3. Inspect relevant vanilla or third-party implementations.
+4. Implement the smallest complete working solution.
+5. Validate XML syntax and applicable schemas.
+6. Validate references, cue names, and dependencies.
+7. Check preservation of existing behavior.
+8. Add useful diagnostics.
+9. Build repeatable tests where feasible.
+10. Document remaining in-game validation requirements.
+11. Continue to the next milestone when its exit conditions are satisfied.
+
+Use scripts to automate repeatable validation.
+
+Do not claim a milestone is game-tested when only static validation has occurred.
+
+If a milestone requires in-game testing unavailable in the current environment, complete all safe implementation and static testing, identify the exact required runtime experiment, and proceed only with work that does not rely on the unverified assumption.
+
+Do not bypass safety gates merely to finish more features.
+
+14. Quality requirements
+
+All implementation must be:
+
+- Native to X4 where possible
+- Namespaced
+- Modular
+- Maintainable
+- Save-conscious
+- Compatible with verified APIs
+- Defensive against invalid state
+- Lightweight
+- Observable through diagnostics
+- Suitable for continued development
+
+Prohibited:
+
+- Fabricated engine APIs
+- Invented Lua callbacks
+- Unverified XML commands
+- Pseudocode disguised as implementation
+- Placeholder functions presented as working
+- Destructive changes to third-party state
+- Unnecessary architectural complexity
+- Silent scope changes
+- False claims of runtime testing
+
+Prefer a correct, limited implementation over a feature-rich implementation that risks player ships.
+
+15. Autonomous execution
+
+You are authorized to perform the complete software development workflow within the available workspace.
+
+Do not repeatedly stop for approval on routine engineering choices.
+
+Do not stop after the architecture document.
+
+Do not stop after creating a skeleton.
+
+Do not declare the project complete because files exist.
+
+Continue through the roadmap, implementing, testing, reviewing, and correcting defects.
+
+Use the existing tooling and project references to resolve technical questions independently.
+
+Ask for user intervention only when:
+
+- A fundamental requirement is contradictory.
+- A necessary action could destroy data.
+- An engine limitation forces a material change in approved functionality.
+- A required runtime experiment needs access or interaction you do not have.
+
+Do not treat lack of in-game access as permission to invent test results.
+
+Do not modify or overwrite original saves. Use backup copies for testing.
+
+If you encounter a blocker, document it, isolate dependent functionality, and continue independent implementation work.
+
+16. Deliverables
+
+Deliver a complete GUNPIRE Logistics extension containing all safely implementable approved features.
+
+Include:
+
+- Complete extension directory
+- "content.xml"
+- Mission Director scripts
+- AI order scripts
+- Lua UI files
+- Compatibility adapter modules where needed
+- Localization resources where needed
+- Diagnostics tools
+- Validation scripts
+- Installation instructions
+- Configuration documentation
+- Compatibility report
+- Test procedures
+- Known limitations
+- Recovery procedures
+- Final release archive
+
+Maintain a concise implementation status file describing:
+
+- Completed milestones
+- Implemented features
+- Static validation results
+- In-game test results, if actually performed
+- Unverified functionality
+- Outstanding defects
+- Compatibility concerns
+- Remaining work
+
+Use distinct labels for IMPLEMENTED, STATICALLY VALIDATED, GAME-TESTED, and BLOCKED.
+
+17. Definition of done
+
+The project is not complete until the supported implementation can:
+
+1. Discover and track construction shortages.
+2. Safely enroll and borrow eligible ships.
+3. Purchase required materials.
+4. Deliver those materials into construction storage.
+5. Avoid duplicated reservations.
+6. Dynamically schedule additional deliveries.
+7. Honor player priorities and restrictions.
+8. Support approved Active and Passive workflows.
+9. Restore borrowed ships to their previous automation.
+10. Handle failures and save/load.
+11. Expose usable native player controls.
+12. Produce actionable diagnostic information.
+13. Pass available static validation.
+14. Pass required in-game acceptance tests before being described as fully verified.
+
+A working logistics system is the objective—not a collection of files that merely look complete.
+
+18. Begin immediately
+
+First, inspect the entire existing project and produce a brief inventory identifying:
+
+- Existing implementation
+- Existing roadmap status
+- Missing modules
+- Major compatibility risks
+- Most important technical blocker
+
+Then begin implementing the project.
+
+Do not respond with a long speculative design proposal.
+
+Do not repeat the requirements back to me.
+
+Do not generate an alternative project concept.
+
+Build GUNPIRE Logistics. Continue until the complete safely implementable mod is delivered, with all remaining runtime validation clearly identified.

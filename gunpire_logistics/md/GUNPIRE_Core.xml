@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mdscript name="GUNPIRE_Core" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../x4_scripting_ref/schemas/md.xsd">
+  <cues>
+    <cue name="GUNPIRE_Init" instantiate="true">
+      <conditions>
+        <event_game_loaded/>
+      </conditions>
+      <actions>
+        <debug_text text="'[GUNPIRE][CORE] Extension loaded. Version 100.'" chance="100"/>
+        <set_value name="global.$GUNPIRE_Version" exact="100"/>
+        <set_value name="global.$GUNPIRE_Enabled" exact="false"/>
+        <set_value name="global.$GUNPIRE_SessionId" exact="'S' + player.age"/>
+        <run_actions ref="GUNPIRE_Log">
+          <param name="level" value="1"/>
+          <param name="component" value="'CORE'"/>
+          <param name="message" value="'Initialized. Session=' + global.$GUNPIRE_SessionId"/>
+        </run_actions>
+      </actions>
+    </cue>
+
+    <library name="GUNPIRE_Log" purpose="run_actions">
+      <params>
+        <param name="level" default="1"/>
+        <param name="component" default="'CORE'"/>
+        <param name="message" default="''"/>
+        <param name="job" default="''"/>
+      </params>
+      <actions>
+        <do_if value="not global.$GUNPIRE_LogLevel? or $level le global.$GUNPIRE_LogLevel">
+          <set_value name="$prefix" exact="'[GUNPIRE][' + $component + ']'"/>
+          <do_if value="$job != ''">
+            <set_value name="$prefix" exact="$prefix + '[' + $job + ']'"/>
+          </do_if>
+          <debug_text text="$prefix + ' ' + $message" chance="100"/>
+        </do_if>
+      </actions>
+    </library>
+
+    <library name="GUNPIRE_SafetyCheckCargoEmpty" purpose="run_actions">
+      <params>
+        <param name="ship"/>
+      </params>
+      <actions>
+        <!-- Trade cargo only; ignore ammo/deployables/equipment. Exact check deferred to verified API. -->
+        <do_if value="$ship? and $ship.exists">
+          <return value="true"/> <!-- Placeholder until verified cargo query -->
+        </do_if>
+        <return value="false"/>
+      </actions>
+    </library>
+  </cues>
+</mdscript>

@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mdscript name="LMP_Orders" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../x4_scripting_ref/schemas/md.xsd">
+  <cues>
+    <!-- Uses verified create_trade_order (common.xsd ~24057).
+         Adds to order queue; does not replace default behavior.
+         Trade deal is bound to the order as $order.trade. -->
+    <library name="LMP_CreateTradeOrder" purpose="run_actions">
+      <params>
+        <param name="ship"/>
+        <param name="tradeoffer"/>
+        <param name="amount"/>
+        <param name="job" default="'none'"/>
+      </params>
+      <actions>
+        <run_actions ref="GUNPIRE_AllowsRealOrders" result="$allows"/>
+        <do_if value="not $allows">
+          <run_actions ref="GUNPIRE_Log">
+            <param name="component" value="'ORDER'"/>
+            <param name="job" value="$job"/>
+            <param name="message" value="'Blocked: profile forbids real orders'"/>
+          </run_actions>
+          <return value="false"/>
+        </do_if>
+        <do_if value="$ship.defaultorder? and ($ship.defaultorder.id == 'GalaxyTraderMK3' or $ship.defaultorder.id == 'GalaxyTraderMK1' or $ship.defaultorder.id == 'GalaxyTraderMK2' or $ship.defaultorder.id == 'GalaxyTraderMK4' or $ship.defaultorder.id == 'GalaxyTraderMK42')">
+          <run_actions ref="GUNPIRE_Log">
+            <param name="component" value="'ORDER'"/>
+            <param name="job" value="$job"/>
+            <param name="message" value="'Blocked: GT ship ' + $ship.idcode"/>
+          </run_actions>
+          <return value="false"/>
+        </do_if>
+        <do_if value="not $ship.exists or not $tradeoffer? or not $tradeoffer.exists">
+          <run_actions ref="GUNPIRE_Log">
+            <param name="component" value="'ORDER'"/>
+            <param name="job" value="$job"/>
+            <param name="message" value="'Blocked: invalid ship or tradeoffer'"/>
+          </run_actions>
+          <return value="false"/>
+        </do_if>
+        <create_trade_order object="$ship" tradeoffer="$tradeoffer" amount="$amount" name="$order"/>
+        <do_if value="$order?">
+          <run_actions ref="GUNPIRE_Log">
+            <param name="component" value="'ORDER'"/>
+            <param name="job" value="$job"/>
+            <param name="message" value="'create_trade_order issued for ' + $ship.idcode + ' amount=' + $amount"/>
+          </run_actions>
+          <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'PURCHASING'"/>
+          <set_value name="global.$LMP_Ships.{$ship}.$job" exact="$job"/>
+          <return value="true"/>
+        </do_if>
+        <run_actions ref="GUNPIRE_Log">
+          <param name="component" value="'ORDER'"/>
+          <param name="job" value="$job"/>
+          <param name="message" value="'create_trade_order failed for ' + $ship.idcode"/>
+        </run_actions>
+        <return value="false"/>
+      </actions>
+    </library>
+  </cues>
+</mdscript>

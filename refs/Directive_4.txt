@@ -1,0 +1,23 @@
+Continue implementation, but resolve these issues before requesting in-game tests.
+
+1. Locate and inspect the actual X4 9.00 "order.trade.perform" AI script. Verify its exact order ID, parameters, expected trade context, and execution behavior. Do not guess order parameters.
+
+2. Confirm whether "create_order default=false" can safely execute a complete purchase and construction-storage delivery without replacing the existing default behavior. Verify order sequencing, completion detection, and restoration requirements.
+
+3. Replace the hardcoded Hull Parts / first-buildstorage dispatcher with generic ware and construction-site selection, using the same production scheduling engine constrained by TEST_SINGLE_SHIP.
+
+4. Verify that the supplier scan returns valid trade offers, quantities, prices, faction permissions, and reachable sources—not merely matching stations.
+
+5. Validate that the reservation ledger accurately reconciles purchases, loaded cargo, completed deliveries, cancellations, and save/load.
+
+6. Perform X4 XSD validation and verify relevant expressions against the scripting reference and vanilla source. ElementTree parsing alone is insufficient.
+
+7. Ensure the single-ship test cannot borrow any GT ship or accidentally control a second ship.
+
+8. Preserve modular architecture, hard gates, integration traceability, and meaningful diagnostics.
+
+Implement every independently verifiable correction now. Keep genuinely runtime-dependent behavior marked UNTESTED.
+
+Do not declare non-GT logistics complete until actual trade-order construction and delivery handling are implemented and statically checked against the installed game scripts.
+
+Continue development rather than stopping at the next unresolved interface.

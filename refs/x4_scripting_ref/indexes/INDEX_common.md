@@ -1,0 +1,411 @@
+# common.xsd — symbol index
+
+Source: `schemas/common.xsd`. Entries are top-level XSD declarations, not guaranteed executable commands.
+
+## attributeGroup (72)
+
+- `voicedataattributes`
+- `findclusterfilters`
+- `find`
+- `findext_entity`
+- `findext_station`
+- `findext_ship`
+- `findext_room`
+- `findext_zone`
+- `findext_sector`
+- `findext_space`
+- `findext_damaged`
+- `findarbitrary`
+- `findentity`
+- `findobject`
+- `findstation`
+- `findship`
+- `findroom`
+- `findzone`
+- `findsector`
+- `findcluster`
+- `matchfilter`
+- `sortresult`
+- `sortresultwithlimit`
+- `blacklist`
+- `createship`
+- `createnpc`
+- `createmodule`
+- `moduletypelimits`
+- `createroom`
+- `createprop`
+- `createstation`
+- `createobject`
+- `random`
+- `counting`
+- `foreach`
+- `range`
+- `rangewithoutlist`
+- `objecteventsource`
+- `clustereventsource`
+- `condition`
+- `eventcondition`
+- `noneventcondition`
+- `action`
+- `conditionalaction`
+- `positionbase`
+- `position`
+- `vector`
+- `rotation`
+- `boundingbox`
+- `safepos`
+- `spacereservation`
+- `createobjectsafepos`
+- `orientation`
+- `rgbcolour`
+- `playerchoice`
+- `interaction` — Interactive notification data
+- `conversationactor`
+- `showhelp`
+- `dropcargo`
+- `resetobjectboost`
+- `objectboost`
+- `objectrelationboost`
+- `existingpeoplelist`
+- `matchingpeoplelist`
+- `setentityflags`
+- `buildoverridewares`
+- `cutscenekeyorid`
+- `userdataname`
+- `terraformingstat`
+- `deployabletimeout`
+- `extendbuildplot`
+- `terraformingeffectattributes`
+
+## complexType (62)
+
+- `filedoc`
+- `matchbase`
+- `matchsubfilter`
+- `matchsubfilterrange`
+- `matchbuyer` — Match filter for the buyer of the trade
+- `matchseller` — Match filter for the seller of the trade
+- `matchwarelist`
+- `matchwaresorcargo`
+- `matchrange`
+- `matchunits`
+- `matchtradeoffervalues`
+- `matchtrade`
+- `matchbuild`
+- `range`
+- `selectrandom`
+- `position` — Position relative to a given space or object
+- `rotation` — Rotation in space
+- `boundingbox` — Bounding box relative to a given space or object
+- `safepos` — Safe position relative to a given space or object
+- `spacereservation`
+- `createobjectsafepos` — Create the object using a safe position
+- `orientation` — Orientation in space
+- `componentoffset` — Component Offset
+- `rangefilter`
+- `rangefilter_withtradepartner`
+- `rangefilter_withtradepartner_fordiscounts`
+- `shipdbcategory`
+- `shipdbcategoryselect`
+- `characterdbcategory`
+- `characterdbcategoryselect`
+- `moduledbcategory`
+- `moduledbcategoryselect` — Criteria for selecting a suitable module from the ModuleDB. If combined with a static ModuleDB reference in the ref attribute, the nodes of the referenced type take precedence. <select> cannot be combined with a variable ModuleDB reference.
+- `moduledblimits` — Base station module limits to be respected when initially constructing (Defaults to 20. Modules in defined base construction plans can exceed the limits)
+- `moduledbmaxlimits` — Maximum station module limits to be respected when expanding a station (Defaults to the base limits defined in the definition or parameters.xml)
+- `moduledbproduction`
+- `roomdbcategory`
+- `propdbcategory`
+- `stationdbcategory`
+- `stationdbcategoryselect`
+- `event_playerpricemodifier`
+- `loadout`
+- `loadoutmacro`
+- `loadoutgroup`
+- `loadoutammo`
+- `loadoutsoftware`
+- `loadoutvirtualmacro`
+- `loadoutcrew`
+- `terraformingcondition`
+- `terraformingconditions` — Project conditions
+- `terraformingeffect`
+- `terraformingeffects`
+- `terraformingsideeffect`
+- `terraformingsideeffects`
+- `terraformingrebate`
+- `terraformingrebates`
+- `terraformingwareamount`
+- `terraformingresources` — Required resources. The amounts will be scaled, using the average prices, to reach the defined total price. If no resource wares are given this is a direct payment instead.
+- `terraformingdelivery`
+- `terraformingdeliveries` — Ships to be built for delivery of resources
+- `terraformingremovedprojects` — Projects that will be removed when this one is completed (usually used for mutually exclusive choices)
+- `terraformingpredecessors` — The predecessor projects that must be completed before this one can be started. Either id or group must be supplied.
+- `terraformingaction`
+
+## group (15)
+
+- `selectrandom`
+- `equipmentmods` — Equipment mods
+- `createship`
+- `createnpc`
+- `createmodule`
+- `createmodulewithmaxlimits`
+- `createstation`
+- `createobject`
+- `people`
+- `loadoutelements` — Loadout elements cannot contain script expressions
+- `constructionsequenceelements` — Construction sequence elements cannot contain script expressions
+- `voicedata`
+- `commonconditions_event`
+- `commonconditions_nonevent`
+- `commonactions`
+
+## simpleType (247)
+
+- `boolean`
+- `booleanexpression`
+- `namestring`
+- `scriptname`
+- `variablename`
+- `idname`
+- `paramname`
+- `textdbref`
+- `expression`
+- `lvalueexpression`
+- `lvaluename` — Name of the value that will receive the result
+- `groupname` — Name of the group to which the result will be added (group will be created if it does not exist yet)
+- `group` — Group of objects
+- `object` — Object
+- `objectlist` — Object or a list of objects
+- `destructible` — Destructible
+- `entity` — Entity
+- `factionorobject` — Faction or Object
+- `ship` — Ship
+- `station` — Station
+- `space` — Containing space (zone, sector, cluster, or galaxy)
+- `spacelist` — Containing space (zone, sector, cluster, or galaxy) or a list of containing spaces
+- `spacelistnozone` — Containing space (sector, cluster, or galaxy) or a list of containing spaces
+- `cluster` — Cluster
+- `room` — Room
+- `sector` — Sector
+- `zone` — Zone
+- `holomap` — HoloMap
+- `actor` — Actor object (NPC)
+- `genericactor` — Actor entity (NPC) or list containing context and NPC template
+- `targetobject` — Target object
+- `targetcomponent` — Target component
+- `targetcomponentslot` — Target component slot
+- `asteroid` — Asteroid
+- `recyclable` — Recyclable
+- `weapon` — Weapon
+- `source` — Source object
+- `killer` — Killer object
+- `killedobject` — Killed object
+- `attacker` — Attacker object
+- `attackedobject` — Attacked object
+- `attackedcomponent` — Attacked component object
+- `damagedcomponent` — Damaged component
+- `dismantledcomponent` — Dismantled component
+- `repairedcomponent` — Repaired component
+- `buildmodule` — Build module
+- `buildprocessor` — Build processor
+- `dismantleprocessor` — Dismantle processor
+- `productionmodule` — Production module
+- `buyer` — Buyer object
+- `seller` — Seller object
+- `buyerrequired` — Buyer object (attribute must be present if seller not supplied)
+- `sellerrequired` — Seller object (attribute must be present if buyer not supplied)
+- `tradeoffer` — Trade Offer
+- `eventtradeoffer` — Trade offer to match. All other attributes and amount check nodes are ignored.
+- `build` — Build Task
+- `operation` — Operation
+- `ware` — Ware
+- `dropware` — Ware (paired with min-max/exact attributes) or ware amount table where the key is the ware and value is the amount
+- `signalleak` — Signal Leak object
+- `scannerrequired` — Object which performs the scanning, or group of objects (attribute must be present if scanned not supplied)
+- `scannedrequired` — Object which is scanned, or group of objects (attribute must be present if scanner not supplied)
+- `hackerrequired` — Object which performs the hacking, or group of objects (attribute must be present if hacked not supplied)
+- `hackedrequired` — Object which is hacked, or group of objects (attribute must be present if hacker not supplied)
+- `lockattackerrequired` — Attacker object (ship or station) which is doing the locking (attribute must be present if target not supplied)
+- `locktargetrequired` — The attacker's lock target object (attribute must be present if attacker not supplied)
+- `locktargetcomponent` — The attacker's lock target component (either the whole target object or a contained component)
+- `observerrequired` — Object which performs the observation, or group of objects (attribute must be present if observed not supplied)
+- `observedrequired` — Object which is observed, or group of objects (attribute must be present if observer not supplied)
+- `attackerrequired` — Object which is attacking the target (attribute must be present if target not supplied)
+- `attackedrequired` — Object which is attacked, or group of objects (attribute must be present if attacker not supplied)
+- `claimedrequired` — Object which is claimed, or group of objects (attribute must be present if pilot not supplied)
+- `claimerrequired` — The claiming entity, or group of entities (attribute must be present if claimed not supplied)
+- `freemissionactorslot` — Is a free slot for a mission actor NPC required?
+- `cutscenekey` — Cutscene key name
+- `list` — List
+- `table` — Table
+- `fixedrandomseed` — Source for fixed random number seed (either a numerical value or an object with a generation seed provided by their spawner). NOTE: When using a numerical seed value, the value does not get updated automatically. In order to generate a sequence of random numbers based on the same numerical seed, use <advance_seed> after each ran
+- `autoadvancerandomseed` — Source for auto-advance random number seed (either a numerical value or an object with a generation seed provided by their spawner). NOTE: The seed value is updated automatically in all cases. When providing a variable with a numerical value, it will receive the updated seed. There is no need to use <advance_seed> after each ran
+- `order` — AI order
+- `immediateorder` — Start this order immediately? (Optional, defaults to false.) If true, the order is inserted as the current order. If there is an active current order, it will be interrupted, so that it restarts when the new order is completed. If the current order cannot be interrupted (i.e. it's in the critical state) the new order is inserted
+- `findappend` — If true then the found objects are appended to the value used as the result (not the groupname result value). Should the value used as the result not be a list, it will become one, losing its previous value (default false)
+- `findclusterappend`
+- `findsectorappend`
+- `findmultiple` — If true then the result is a list of all found objects, otherwise the result is a single object or null (default is true for count_ conditions, false for find_ actions). In case of multiple=false, the single result is the first object according to the sort criteria, or randomly selected from all matching objects if no sort crite
+- `findrequired` — If true then an error message will be produced if no result is found (default is false)
+- `findrecursive` — If true then the search does not stop at contained objects, but these objects and their sub-components are searched recursively as well (default is false)
+- `findincludeobjects` — If true then the search will include contained objects (of class object, e.g. docked ships). Sub-components of these objects are not included, unless the recursive attribute is set. The recursive attribute takes precedence over includeobjects. Default is false.
+- `comment` — Comment for documentation purposes only
+- `container` — Container (ship or station)
+- `crate` — Crate (on first-person platform)
+- `macro` — Macro
+- `macroname` — Macro name (either a plain macro string or a script expression that evaluates to a string or macro)
+- `constructionplan` — Construction plan
+- `moduletypelimit` — Module type limit. Integer or a script expression that evaluates to an integer
+- `docked` — Ship is docked or parked at another object, including internal storage and piers
+- `known` — Known to player?
+- `hasmasstraffic` — Is the station connected to a mass traffic network?
+- `page` — Text page ID
+- `pagewithdefault` — Text page ID (defaults to the speaker's voice page if not supplied)
+- `line` — Line ID in a text page
+- `speakdelay` — Optional short delay before the speech. Note that the delay is technically treated like a part of the actual speech, except for the display of subtitles and for the time value of a speak timer.
+- `speakemotion` — Optional emotion description: Either a single emote ID string (triggered at the start of the speak) or a list [ offset1, emote1, offset2, emote2, ... ], with pairs of relative offsets and emote ID strings. Each offset is a value between 0.0 and 1.0, relative to the duration of the speak. NOTE: time offsets are not supported. A v
+- `speaktimer` — Optional timer value to request an <event_speak_timer_triggered> event at a certain time while a speak voice sample is played: Specify either a value of type time as an absolute real-time offset (e.g. 500ms to trigger the event after half a second), or a value of type float, relative to the duration of the speak (e.g. 0.5 to tri
+- `speakinterruptontimer` — When used together with the timer attribute, should the speak be interrupted automatically when the timer is triggered? If used, it is guaranteed that param3 of <event_speak_finished> will not be 0. Defaults to false.
+- `lineorlist` — Line ID or a list of line IDs on a text page (list may include time values within the line ID sequence, to insert delays/pauses between lines)
+- `section` — Conversation section name
+- `conversation` — Conversation name
+- `negatecondition` — Negate condition?
+- `colour` — Colour Value (0 - 255)
+- `masstraffic` — Mass traffic network ID
+- `pricemodifieramount` — Discount/commission amount as percentage of a ware's price variation range, valid range from 1 to 100. NOTE: This is not the actual discount/commission percentage, which depends on the ware that the price modifier is applied to. Discounts/Commissions apply to all sell/buy offers of object/faction respectively.
+- `countresult` — Single result value if multiple="false", otherwise list of result values
+- `groupeventsource` — Group of event objects (can be supplied instead of a single event object). The check attribute does not apply. The group is required to exist but may be empty. Adding/removing group members is possible even after the event is set up.
+- `checkeventsource` — Produce an error message if the provided event object does not exist? Default is true. NOTE: If the event object is a variable or a changeable property, changing it at a later time has no direct effect on this event condition, i.e. it is not re-enabled automatically. It is only updated under certain conditions, e.g. when loading
+- `notificationtext` — Notification text to be displayed, either a single string with possible line breaks (left-aligned), or a list of strings. In a list, each pair of strings defines a single row (left-aligned and right-aligned text). In the list you can use [ string, r, g, b ] instead of a simple string to specify an RGB text color, with color valu
+- `receivepeople` — Is the receiving container allowed to receive the people as person templates? Takes precidence over 'receiveworkforce'. Defaults to true.
+- `receiveworkforce` — Is the receiving container allowed to receive the people as workforce? (defaults to false)
+- `providepeople` — Is the providing container allowed to provide people from their own people? Takes precidence over 'provideworkforce'. Defaults to true.
+- `provideworkforce` — Is the providing container allowed to provide people from their own workforce? (defaults to true)
+- `notificationtype` — Notification type. Must be a 'notification' datatype. (see notificationtypes.xml)
+- `versionstatus` — Version status
+- `selectionlookup` — Selection type (used with select sub-nodes)
+- `selectionweight` — Weight which determines the chance of this node being selected
+- `setoperationlookup` — Operation to perform (default is set)
+- `killmethodlookup` — Kill method
+- `racelookup`
+- `rawraceexprlookup`
+- `raceexprlookup`
+- `race` — Race (species)
+- `factionlookup`
+- `rawfactionexprlookup`
+- `factionexprlookup`
+- `faction` — Faction
+- `modulesettypelookup`
+- `stationtypelookup`
+- `stationtypeexprlookup` — Station type
+- `stationtypestaticexprlookup` — Station type
+- `owner` — Owner faction
+- `owners` — Owner faction, or list of owner factions
+- `quadrantlookup`
+- `quadrant` — Directional Quadrant
+- `ammotypelookup`
+- `roomtypelookup`
+- `roomtypeexprlookup` — Room type
+- `agenttypelookup`
+- `agenttypeexprlookup` — Agent experience type
+- `agentrisklookup`
+- `agentriskexprlookup` — Agent risk
+- `agentresultlookup`
+- `agentresultexprlookup` — Agent result state
+- `influencelookup`
+- `influenceexprlookup` — Diplomacy influence
+- `diplomacyactioncategorylookup`
+- `weaponsystemlookup`
+- `weapontypelookup`
+- `weaponmodelookup`
+- `extendedweaponmodelookup`
+- `dockstatelookup`
+- `shiptypelookup`
+- `shiptypeexprlookup` — Ship type
+- `orientationlookup`
+- `activityexprlookup` — Player activity
+- `alertlevellookup`
+- `classlookup`
+- `positionalclasslookup`
+- `destructibleclasslookup`
+- `objectclasslookup`
+- `shipclasslookup`
+- `shipsizeclasslookup`
+- `stationclasslookup`
+- `spaceclasslookup`
+- `entityclasslookup`
+- `roomclasslookup`
+- `objectunlockstatelookup`
+- `attentionlookup`
+- `attentionexprlookup`
+- `componentstatelookup`
+- `componentstateexprlookup`
+- `dronemodeexprlookup`
+- `entitytypelookup`
+- `entitytypeexprlookup`
+- `entitytype` — Actor (entity) type
+- `entityroleexprlookup`
+- `entityrole` — Actor (entity) role
+- `skilltypelookup`
+- `skilltypeexprlookup`
+- `skilltype` — Skill type
+- `controlpostexprlookup`
+- `controlpost` — Control post
+- `assignmentlookup`
+- `assignmentexprlookup`
+- `assignment` — Subordinate assignment
+- `controlpositionexprlookup`
+- `controlposition` — Control position lookup
+- `infolibrarytypelookup`
+- `roompopulationtypelookup`
+- `roompopulationtypeexprlookup`
+- `profilelookup`
+- `uipositionlookup` — Position in conversation menu (a free position is selected if not supplied). This can be either a fixed named value, or a variable script expression (providing the option number between 1 and 6).
+- `helppositionlookup`
+- `levellookup` — Difficulty level
+- `upkeepalertlevellookup` — Upkeep alert level
+- `logcategorylookup` — Logbook category
+- `loginteractionlookup` — Logbook interaction type
+- `relationcomparison` — Behaviour to compare the relation range
+- `formationshapelookup`
+- `licencelookup`
+- `relationlookup`
+- `tradesorterlookup`
+- `npcsummarysorterlookup`
+- `unitcategorylookup`
+- `deployablecategorylookup`
+- `entityhirablerolelookup`
+- `entityrolelookup`
+- `purposelookup`
+- `targetpointtypelookup` — Implicitly defines the interactions and the icon this target point should have
+- `controlpaneltypelookup`
+- `signalleaktypelookup`
+- `boardingphaselookup`
+- `boardingbehaviourlookup`
+- `blacklisttypelookup`
+- `blacklistgrouplookup`
+- `marinestatuslookup`
+- `waretransportlookup`
+- `relationchangereasonlookup`
+- `moodtypelookup` — Faction mood type
+- `moodlevellookup` — Faction mood level
+- `orderstatelookup`
+- `diplomacyexclusionflaglookup`
+- `diplomacyexclusionflaglist` — Diplomacy exclusion reason flag list (use as many as required, space-separated)
+- `loadoutflaglookup`
+- `loadoutflaglist` — Loadout flag list (use as many as required, space-separated)
+- `propflaglookup`
+- `propflaglist` — Prop flag list (use as many as required, space-separated)
+- `wareflaglookup`
+- `wareflags` — Ware flaglist (use as many as required, space-separated)
+- `animationtriggerlookup`
+- `encountertypelookup`
+- `terraformingpricescalelookup`
+- `regiongrouplookup`
+- `buildmethodlookup`
+- `buildissueflaglookup`
+- `buildissueflaglist` — Build issue flag list (use as many as required, space-separated)
+- `halignlookup`
+- `valignlookup`
+- `traderulelookup`

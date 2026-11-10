@@ -1,0 +1,907 @@
+GUNPIRE Logistics — Full Product Build Directive
+
+One-Pass Implementation · Modular Architecture · Hard-Gated Testing · Complete Traceability
+
+You are the principal software architect, senior X4: Foundations mod developer, integration engineer, and quality assurance lead for GUNPIRE Logistics.
+
+Your task is to BUILD THE ENTIRE MOD, working backward from the complete intended product rather than implementing disconnected prototypes.
+
+This is an implementation directive, not a request for an architectural proposal.
+
+You must inspect the existing workspace, establish the final architecture, implement the complete system, validate its components, and deliver a usable X4 extension.
+
+Do not stop after generating documentation, scaffolding, or pseudocode.
+
+Do not introduce local LLMs, AI agents, model orchestration, external runtime services, or cloud dependencies. Claude Code itself is the development tool.
+
+---
+
+1. PROJECT AUTHORITY
+
+Target:
+
+- X4: Foundations 9.00
+- Heavily modded X4 Rebirth(ed) installation
+- Windows 11
+- Native X4 Mission Director XML, AI scripts, and Lua UI
+- Compatibility with existing savegames wherever technically possible
+
+Read and inspect all available project files:
+
+- "GUNPIRE_Logistics_Mod_Project_Scope.md"
+- "GUNPIRE_Logistics_Implementation_Roadmap.md"
+- "01_GUNPIRE_Integration_Reference.md"
+- "02_UI_and_Support_APIs.md"
+- "03_Extracted_Source_Index.md"
+- "X4_Scripting_Reference.html"
+- "GUNPIRE_Mod_Reference_Pack.zip"
+- Existing GUNPIRE M0 Diagnostics files
+- All existing GUNPIRE source code
+
+Locate files even when revision suffixes or directory structures differ.
+
+The approved Project Scope is the requirements authority.
+
+The roadmap describes implementation stages. This directive describes engineering organization and test isolation. Neither grants permission to silently expand approved game functionality.
+
+Preserve previous working code and stable persistent cue identities.
+
+---
+
+2. PRIMARY OBJECTIVE
+
+Build the complete GUNPIRE Logistics construction supply dispatcher.
+
+The player selects eligible ships, chooses construction supply targets, and enables Build Priority.
+
+GUNPIRE temporarily borrows eligible ships from existing assignments, sources construction materials, coordinates deliveries, and restores the ships to their original work.
+
+Implement the approved functionality, including:
+
+- Player-selected ship pool
+- Build Priority ON/OFF
+- Cargo-safe temporary ship takeover
+- Original behavior and assignment restoration
+- Preservation of Galaxy Trader progression
+- All / Targeted / Closest construction-storage modes
+- Player / NPC / Both supplier filters
+- Distance versus cost preference
+- Value-aware source selection
+- Dynamic one-delivery-at-a-time scheduling
+- Shared multi-site fleet allocation
+- Cargo-class-aware ship matching
+- Inbound material reservations
+- Fair, weighted construction priority
+- Default 50% relative priority per site
+- Optional completion and shortage notifications
+- Native in-game UI
+- Save/load persistence
+- Failure recovery
+- Large-fleet performance protection
+
+Do not develop unrelated station management, factory planning, military logistics, or economy replacement systems.
+
+---
+
+3. BUILD BACKWARD FROM THE FINISHED PRODUCT
+
+Do not organize the architecture as a series of temporary M0/M1/M2 prototypes.
+
+Instead:
+
+1. Define the final production architecture.
+2. Identify all components required by the complete product.
+3. Define each component's responsibilities.
+4. Establish explicit interfaces and contracts.
+5. Map every cross-component dependency.
+6. Establish the feature-gate system.
+7. Establish diagnostics and validation infrastructure.
+8. Implement the complete production components.
+9. Validate progressively through isolated execution profiles.
+10. Package the completed extension.
+
+Existing roadmap milestones remain useful as acceptance checkpoints, not as separate throwaway implementations.
+
+The entire project should share one coherent data model, state machine, dispatcher, reservation system, and persistence strategy.
+
+Do not build duplicate engines for different test stages.
+
+One production codebase. Multiple controlled execution profiles.
+
+---
+
+4. MODULAR FILE ARCHITECTURE
+
+Separate source files by responsibility and by actual X4 file format.
+
+Use the native X4 directory structure required by the engine.
+
+The following is a conceptual structure. Verify exact loading requirements before using these paths:
+
+GUNPIRE_Logistics/
+│
+├── content.xml
+├── setup.config
+│
+├── md/
+│   ├── GUNPIRE_Core.xml
+│   ├── GUNPIRE_Config.xml
+│   ├── GUNPIRE_Fleet.xml
+│   ├── GUNPIRE_Takeover.xml
+│   ├── GUNPIRE_Restore.xml
+│   ├── GUNPIRE_Demand.xml
+│   ├── GUNPIRE_Sources.xml
+│   ├── GUNPIRE_Reservations.xml
+│   ├── GUNPIRE_Dispatcher.xml
+│   ├── GUNPIRE_Recovery.xml
+│   └── GUNPIRE_Diagnostics.xml
+│
+├── aiscripts/
+│   └── [Verified GUNPIRE AI scripts]
+│
+├── ui/
+│   └── [Verified X4 Lua UI structure]
+│
+├── t/
+│   └── [Localization resources]
+│
+├── compatibility/
+│   └── [Source-level adapters only where supported]
+│
+├── tools/
+│   ├── validate.ps1
+│   ├── build.ps1
+│   └── diagnostics/
+│
+├── docs/
+│   ├── ARCHITECTURE.md
+│   ├── COMPONENT_REGISTRY.md
+│   ├── INTEGRATION_MAP.md
+│   ├── STATE_MACHINES.md
+│   ├── FEATURE_GATES.md
+│   ├── TEST_MATRIX.md
+│   └── KNOWN_LIMITATIONS.md
+│
+└── dist/
+    └── GUNPIRE_Logistics.zip
+
+Do not create invalid X4 directories or assume arbitrary files are executed by the engine.
+
+If "setup.config" cannot be read natively by X4, make it a human-editable source configuration that the build tool translates into a verified, engine-readable format.
+
+Do not require unsupported runtime file I/O.
+
+Each component must have one primary responsibility.
+
+Avoid giant XML files containing unrelated systems.
+
+Avoid excessive fragmentation when a component cannot operate independently.
+
+---
+
+5. CENTRALIZED FEATURE-GATE SYSTEM
+
+Implement a central configuration system with exactly five primary operating profiles.
+
+The developer selects one profile.
+
+Every subsystem must determine its permitted behavior from this central authority.
+
+Suggested configuration:
+
+[GUNPIRE]
+profile = TEST_SINGLE_SHIP
+
+[SAFETY]
+enforce_cargo_empty = true
+preserve_original_behavior = true
+preserve_trader_progression = true
+enforce_reservations = true
+safe_restoration = true
+
+[DIAGNOSTICS]
+enabled = true
+verbosity = DEBUG
+
+Safety requirements are mandatory invariants, not optional features.
+
+Changing profile must never bypass safety protections.
+
+Profile 1: TEST_SINGLE_SHIP
+
+Purpose: Validate a complete production delivery lifecycle with one specifically authorized ship.
+
+Enable:
+
+- Core runtime
+- Configuration
+- One-ship enrollment
+- Cargo eligibility
+- Original assignment snapshot
+- Safe takeover
+- Demand discovery
+- Supplier discovery
+- Minimum required reservations
+- One real purchase
+- One real construction delivery
+- Safe restoration
+- Targeted diagnostics
+
+Disable:
+
+- Fleet-wide takeover
+- Multiple simultaneous controlled ships
+- Advanced fleet distribution
+- Multi-site optimization
+- Nonessential UI workflows
+
+The selected test ship is the only ship that may receive GUNPIRE orders.
+
+Limit to one committed delivery for the test, then restore.
+
+Use real production functions, not a separate fake delivery implementation.
+
+Profile 2: TEST_DISPATCHER
+
+Purpose: Validate demand calculation and scheduling without changing real ship orders.
+
+Enable:
+
+- Construction demand discovery
+- Supplier evaluation
+- Ship eligibility inspection
+- Dispatch scoring
+- Priority calculations
+- Reservation simulation
+- Full decision tracing
+
+Disable:
+
+- Real ship takeover
+- Real purchase orders
+- Real deliveries
+- Modification of production reservation records
+- Behavior restoration actions that are unnecessary because nothing was borrowed
+
+Use isolated simulation state or read-only planning.
+
+No physical game-economy changes are allowed.
+
+Profile 3: TEST_FLEET
+
+Purpose: Test real multi-ship coordination and dynamic resource allocation.
+
+Enable:
+
+- Approved test fleet only
+- Shared dispatcher
+- Multiple sites
+- Dynamic scheduling
+- Real deliveries
+- Reservation reconciliation
+- Priority weighting
+- Safe restoration
+- Full diagnostics
+
+Do not automatically enroll unrelated player ships.
+
+Profile 4: TEST_UI
+
+Purpose: Validate native UI and MD/Lua communication.
+
+Enable:
+
+- Native UI
+- Configuration controls
+- Fleet and site display
+- Status reporting
+- UI event diagnostics
+- Read-only game-state inspection where needed
+
+Disable:
+
+- Real ship takeover
+- Autonomous dispatcher execution
+- Trade execution
+
+Use explicitly identified test data only where live data is unavailable.
+
+Do not pretend simulated UI data represents game state.
+
+Profile 5: FULL
+
+Purpose: Enable the complete approved production system.
+
+Enable:
+
+- All approved construction logistics features
+- All enrolled eligible ships
+- Active and Passive operating functionality where supported by the approved scope
+- Dynamic fleet allocation
+- Full reservation tracking
+- Native UI
+- Recovery and restoration
+- Normal operational diagnostics
+
+FULL must not enable experimental or unfinished behavior.
+
+A feature with an unresolved critical safety dependency must remain blocked even under FULL.
+
+---
+
+6. HARD-GATE ENFORCEMENT
+
+Feature profiles must control actual execution, not just UI visibility.
+
+Enforce gates at every critical entry point:
+
+- Ship enrollment
+- Takeover authorization
+- Order creation
+- Supplier selection
+- Reservation creation
+- Dispatcher activation
+- UI command processing
+- Recovery execution
+- Ship restoration
+
+Centralize feature policy definitions.
+
+Avoid independent contradictory feature flags distributed across files.
+
+For example:
+
+TEST_SINGLE_SHIP
+    permitted_ship_count = 1
+    real_orders = YES
+    dispatcher_scope = SINGLE
+    complete_delivery = YES
+    restore_after_delivery = YES
+    multi_site_balancing = NO
+
+These are conceptual policy attributes, not presumed X4 engine syntax.
+
+Translate them into validated native implementation.
+
+Add explicit handling for unsupported profile changes while ships are already controlled.
+
+A switch from FULL to TEST_SINGLE_SHIP must not abandon existing deliveries or erase restoration records.
+
+Configuration changes should take effect only at verified safe transitions where required.
+
+---
+
+7. ALWAYS-ON SAFETY KERNEL
+
+Safety must be independent of optional feature profiles.
+
+Mandatory protection:
+
+- Cargo eligibility
+- Active-order eligibility
+- Persistent ship snapshots
+- Restoration verification
+- Reservation integrity
+- Job ownership
+- No unauthorized ship takeover
+- Recovery after save/load
+- Protection against invalid game objects
+- Protection against duplicate dispatch
+- Prevention of silent cargo loss
+- Preservation of pilot progression
+
+On failure, block unsafe action and produce a diagnostic record.
+
+Never treat a failed safety check as permission to continue.
+
+The emergency stop must prevent new assignments while allowing safe completion, recovery, or restoration of existing operations.
+
+---
+
+8. TRACEABLE COMPONENT CONTRACTS
+
+Every component must have a declared interface contract.
+
+Create a component registry containing:
+
+- Component ID
+- Owner source file
+- File format
+- Responsibility
+- Input events
+- Output events
+- State owned
+- State modified
+- Upstream dependencies
+- Downstream dependencies
+- External engine interfaces
+- Third-party integration points
+- Feature-gate requirements
+- Failure handling
+- Diagnostic event IDs
+
+Use consistent component identifiers such as:
+
+CORE
+CONFIG
+FLEET
+TAKEOVER
+RESTORE
+DEMAND
+SOURCE
+RESERVE
+DISPATCH
+RECOVERY
+UI
+COMPAT_GT
+
+A component should not secretly modify another component's internal state.
+
+Define explicit handoff contracts.
+
+For every integration, identify precisely where a request originates and where it is handled.
+
+---
+
+9. COMPLETE INTEGRATION TRACEABILITY
+
+Create an "INTEGRATION_MAP.md" with a traceable record for every cross-component connection.
+
+Example:
+
+INTEGRATION ID: INT-TAKEOVER-001
+
+SOURCE:
+  GUNPIRE_Dispatcher.xml
+
+DESTINATION:
+  GUNPIRE_Takeover.xml
+
+PURPOSE:
+  Request controlled ship assignment
+
+INPUT:
+  Ship reference
+  Job identifier
+
+PRECONDITIONS:
+  Ship enrolled
+  Cargo empty
+  Snapshot valid
+  Feature gate approved
+
+SUCCESS:
+  Controlled state confirmed
+
+FAILURE:
+  Job rejected
+  Existing assignment preserved
+  Reason logged
+
+DIAGNOSTIC:
+  GUNPIRE.TAKEOVER.REQUEST
+
+For every X4 API used, document:
+
+- Exact API name
+- Expected argument types
+- Return behavior
+- Reference source
+- Known limitations
+- Calling component
+- Error behavior
+
+Do not fabricate interface details.
+
+Where possible, generate integration documentation from a single machine-readable component manifest so documentation and implementation do not drift apart.
+
+---
+
+10. DIAGNOSTICS BY DESIGN
+
+Diagnostics are a first-class part of the architecture.
+
+Every significant operation must carry a traceable identifier.
+
+Recommended hierarchy:
+
+SESSION ID
+  SHIP ID
+    JOB ID
+      RESERVATION ID
+        OPERATION ID
+
+Example diagnostic sequence:
+
+[GUNPIRE][DISPATCH][JOB-0042] Job selected
+
+[GUNPIRE][RESERVE][JOB-0042] Reserved 1200 Hull Parts
+
+[GUNPIRE][TAKEOVER][JOB-0042] Snapshot confirmed
+
+[GUNPIRE][ORDER][JOB-0042] Purchase issued
+
+[GUNPIRE][DELIVERY][JOB-0042] Cargo deposited
+
+[GUNPIRE][RESTORE][JOB-0042] Original behavior restored
+
+These are illustrative log messages.
+
+Implement logging through verified X4-supported mechanisms.
+
+Include structured event codes for:
+
+- Initialization
+- Feature gates
+- Ship eligibility
+- Takeover
+- Assignment snapshot
+- Demand detection
+- Supplier selection
+- Reservation creation
+- Reservation release
+- Order submission
+- Trade failure
+- Delivery confirmation
+- Restoration
+- Persistence
+- Recovery
+- UI communication
+
+For failures, log what failed, which component owns the failure, and what the system did in response.
+
+Avoid dumping entire large data structures or producing unbounded logs.
+
+Preserve or improve the existing M0 diagnostics system, including its independent monitoring consoles.
+
+Provide a debugging guide mapping an event code directly to the responsible source file and probable failure causes.
+
+---
+
+11. X4 ENGINE AND THIRD-PARTY ADAPTERS
+
+Inspect the provided reference files and original extracted sources.
+
+Specifically examine:
+
+- X4 9.00 MD schema
+- AI scripts
+- Vanilla ship order management
+- Construction storage interfaces
+- Trade offer interfaces
+- Galaxy Trader MK3
+- Kuertee UI Extensions
+- SirNukes Mod Support APIs
+- Other relevant installed AI/trader modifications
+
+Isolate third-party-specific handling.
+
+Galaxy Trader integration must not be scattered through the dispatcher, UI, and restoration components.
+
+Use an adapter boundary with a documented contract.
+
+If a third-party system cannot be safely suspended or restored, reject that handoff rather than guessing.
+
+Do not overwrite third-party progression state.
+
+Do not rewrite installed third-party mods to make GUNPIRE function unless explicitly authorized.
+
+---
+
+12. DELIVERY STATE MACHINE
+
+Implement one coherent, persistent job lifecycle.
+
+Conceptual states:
+
+DISCOVERED
+    ↓
+ELIGIBLE
+    ↓
+RESERVED
+    ↓
+SNAPSHOTTED
+    ↓
+CONTROLLED
+    ↓
+PURCHASING
+    ↓
+LOADED
+    ↓
+DELIVERING
+    ↓
+CONFIRMED
+    ↓
+RELEASED
+
+Support explicit failure, cancellation, recovery, and restoration paths.
+
+Do not rely on these exact state names if the existing implementation uses a better verified model.
+
+The job lifecycle must provide:
+
+- Idempotent transitions
+- Single owner per active job
+- Safe reservation cleanup
+- Save/load reconciliation
+- Consistent cargo accounting
+- No duplicate job execution
+- Deterministic restoration handling
+
+Define behavior for ships destroyed, manually reassigned, disconnected from their commander, or blocked by unavailable suppliers.
+
+---
+
+13. SCHEDULER DESIGN
+
+Use one shared production dispatcher.
+
+Do not create separate dispatchers for SINGLE_SHIP and FULL.
+
+Feature gates constrain the same scheduler.
+
+Requirements:
+
+- Shared fleet pool
+- Multiple construction sites
+- Multiple ware demands
+- Source selection
+- Cargo-capacity matching
+- Dynamic job reassignment
+- Relative priority weighting
+- Fairness protection
+- Inbound reservations
+- One purchase/delivery commitment per ship
+- Recalculation after completion
+
+Prevent starvation.
+
+Avoid over-ordering.
+
+Avoid selecting inaccessible or invalid suppliers.
+
+Do not fill an entire ship when the destination requires less cargo.
+
+Balance distance and cost using the approved value-aware preferences.
+
+Avoid excessive polling.
+
+Use verified event-driven updates and appropriately bounded periodic reconciliation when required.
+
+---
+
+14. NATIVE UI
+
+Build the complete compact X4 interface.
+
+Minimum approved controls:
+
+- Fleet selection
+- Build Priority ON/OFF
+- All / Targeted / Closest construction supply mode
+- Player / NPC / Both supplier filter
+- Cost versus distance slider
+- Closest-to-ship / closest-to-destination preference
+- Per-site relative priority sliders
+- Optional notification settings
+- Basic ship and job status
+- Actionable exception reporting
+
+Separate player configuration from developer testing profiles.
+
+The developer profile configuration must not turn the normal player-facing UI into a debugging dashboard.
+
+Advanced settings should remain compact and expandable.
+
+Document each Lua/MD interaction.
+
+---
+
+15. AUTOMATED STATIC VALIDATION
+
+Develop validation tooling that checks the full project.
+
+Where supported, verify:
+
+- XML well-formedness
+- X4 schema compatibility
+- Valid cue structure
+- Unique cue identifiers
+- Valid AI script structure
+- Missing referenced files
+- Missing dependencies
+- Invalid extension metadata
+- Unresolved integration endpoints
+- Feature-gate completeness
+- Unreachable or contradictory transitions
+- Missing diagnostic component ownership
+- Configuration/profile validity
+- Packaging integrity
+
+A successful XML parse is not proof of functional correctness.
+
+Every validation command must return a meaningful pass/fail result.
+
+Do not invent passing tests.
+
+---
+
+16. PROFILE-BASED TEST MATRIX
+
+Create repeatable acceptance tests for every execution profile.
+
+TEST_SINGLE_SHIP
+
+- Exactly one authorized ship
+- Empty-cargo handoff
+- Snapshot captured
+- Real purchase
+- Real delivery
+- Cargo reconciliation
+- Original assignment restored
+- Trader progression preserved
+
+TEST_DISPATCHER
+
+- Demand calculated
+- Reservations simulated separately
+- Supplier matched
+- Priority weights applied
+- No physical ship control
+- No economy changes
+
+TEST_FLEET
+
+- Multiple ships
+- Multiple sites
+- No reservation duplication
+- Fair scheduling
+- Cargo-aware allocation
+- Dynamic reevaluation
+- Reliable restoration
+
+TEST_UI
+
+- Menu loads
+- Configuration changes transmit correctly
+- Active fleet is displayed
+- Priority sliders update
+- No real trade orders executed
+
+FULL
+
+- All approved functions integrated
+- Save/load recovery
+- Toggle OFF while delivering
+- Supplier disappears
+- Construction completes
+- Ship destroyed
+- Manual player intervention
+- Third-party trader restoration
+- Large-fleet performance
+
+Distinguish static checks from actual in-game results.
+
+If game access is unavailable, do not report runtime acceptance tests as passed.
+
+---
+
+17. COMPLETE FILE-LEVEL ACCOUNTABILITY
+
+Every production file must have an identifiable purpose.
+
+Create a generated file inventory:
+
+FILE
+FORMAT
+PURPOSE
+COMPONENT OWNER
+CALLED BY
+CALLS INTO
+FEATURE PROFILE
+DIAGNOSTIC PREFIX
+VALIDATION STATUS
+
+If a file has no legitimate runtime, build, documentation, or testing purpose, remove it from the release.
+
+Use consistent naming.
+
+No mystery connectors.
+
+No hidden behavior.
+
+No unnecessary duplicate subsystems.
+
+Make it possible for another developer to open the integration map, find a failing event, identify the responsible component, and navigate directly to the source file.
+
+---
+
+18. DEVELOPMENT AUTONOMY
+
+You are authorized to implement the full project without repeatedly requesting approval for routine decisions.
+
+Proceed through:
+
+1. Workspace audit
+2. Production architecture
+3. Feature-gate contracts
+4. Complete source implementation
+5. Compatibility integration
+6. Native UI
+7. Diagnostics
+8. Automated validation
+9. Defect correction
+10. Packaging
+11. Acceptance-test documentation
+
+Do not produce a design and wait for permission to code.
+
+Do not introduce unrelated features.
+
+Do not destructively replace working implementation without assessing dependencies.
+
+Do not bypass a critical safety uncertainty.
+
+If an engine limitation prevents an approved feature from being implemented safely, document it, isolate it behind a hard gate, and continue independent development.
+
+Never fake an implementation merely to complete the feature checklist.
+
+---
+
+19. FINAL DELIVERABLES
+
+Produce:
+
+1. Complete GUNPIRE Logistics extension
+2. Production source files
+3. Central feature-profile configuration
+4. Native in-game UI
+5. Third-party compatibility adapters where viable
+6. M0 diagnostics integration
+7. Automated validation suite
+8. Complete integration traceability map
+9. Component dependency registry
+10. State-machine documentation
+11. Profile-based test procedures
+12. Installation instructions
+13. Known limitations and unresolved technical constraints
+14. Release ZIP
+15. Final implementation and validation report
+
+Package only files needed for the actual installed extension, keeping development tools and reference documentation separate as appropriate.
+
+The final report must distinguish:
+
+- Implemented
+- Statically validated
+- In-game tested
+- Blocked
+- Not implemented
+
+Do not claim full production readiness without the required in-game testing.
+
+---
+
+20. EXECUTION COMMAND
+
+BEGIN DEVELOPMENT NOW.
+
+Inspect the current project and reference materials.
+
+Produce a concise initial inventory of existing source files and implementation status.
+
+Then immediately implement the complete architecture and functionality.
+
+Do not respond with a lengthy design proposal.
+
+Do not ask me which module to start with.
+
+Do not restart the project unnecessarily.
+
+Do not create placeholder implementations.
+
+Do not substitute documentation for working source files.
+
+Build the complete GUNPIRE Logistics mod in one coherent engineering pass. Engineer it backward from the finished product, with five centralized test/production profiles, hard execution gates, always-on safety protection, and complete source-level traceability.
+
+The result should be a mod that can be installed, independently debugged by subsystem, and progressively verified in X4 without rebuilding or rewriting its core architecture.

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mdscript name="GUNPIRE_Config" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../x4_scripting_ref/schemas/md.xsd">
+  <cues>
+    <!-- Central feature-gate authority. Safety invariants always enforced. -->
+    <cue name="GUNPIRE_Config_Init" instantiate="true">
+      <conditions>
+        <event_game_loaded/>
+      </conditions>
+      <actions>
+        <do_if value="not global.$GUNPIRE_Profile?">
+          <set_value name="global.$GUNPIRE_Profile" exact="'TEST_SINGLE_SHIP'"/>
+        </do_if>
+        <set_value name="global.$GUNPIRE_Safety" exact="table[]"/>
+        <set_value name="global.$GUNPIRE_Safety.$enforce_cargo_empty" exact="true"/>
+        <set_value name="global.$GUNPIRE_Safety.$preserve_original_behavior" exact="true"/>
+        <set_value name="global.$GUNPIRE_Safety.$preserve_trader_progression" exact="true"/>
+        <set_value name="global.$GUNPIRE_Safety.$enforce_reservations" exact="true"/>
+        <set_value name="global.$GUNPIRE_Safety.$safe_restoration" exact="true"/>
+        <debug_text text="'[GUNPIRE][CONFIG] Profile=' + global.$GUNPIRE_Profile + ' safety kernel active'" chance="100"/>
+      </actions>
+    </cue>
+
+    <library name="GUNPIRE_IsProfile" purpose="run_actions">
+      <params>
+        <param name="profile" default="'FULL'"/>
+      </params>
+      <actions>
+        <return value="global.$GUNPIRE_Profile? and global.$GUNPIRE_Profile == $profile"/>
+      </actions>
+    </library>
+
+    <library name="GUNPIRE_AllowsRealOrders" purpose="run_actions">
+      <actions>
+        <return value="global.$GUNPIRE_Profile? and (global.$GUNPIRE_Profile == 'TEST_SINGLE_SHIP' or global.$GUNPIRE_Profile == 'TEST_FLEET' or global.$GUNPIRE_Profile == 'FULL')"/>
+      </actions>
+    </library>
+
+    <library name="GUNPIRE_MaxControlledShips" purpose="run_actions">
+      <actions>
+        <do_if value="global.$GUNPIRE_Profile == 'TEST_SINGLE_SHIP'">
+          <return value="1"/>
+        </do_if>
+        <do_elseif value="global.$GUNPIRE_Profile == 'TEST_DISPATCHER' or global.$GUNPIRE_Profile == 'TEST_UI'">
+          <return value="0"/>
+        </do_elseif>
+        <do_else>
+          <return value="999"/>
+        </do_else>
+      </actions>
+    </library>
+  </cues>
+</mdscript>
