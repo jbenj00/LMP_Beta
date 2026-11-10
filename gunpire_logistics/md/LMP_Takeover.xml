@@ -10,19 +10,16 @@
         <do_if value="not $ship? or not $ship.exists">
           <return value="false"/>
         </do_if>
-        <set_value name="$snap" exact="table[]"/>
-        <set_value name="$snap.$idcode" exact="$ship.idcode"/>
-        <set_value name="$snap.$commander" exact="if $ship.commander? then $ship.commander else null"/>
-        <set_value name="$snap.$home" exact="if $ship.home? then $ship.home else null"/>
-        <set_value name="$snap.$defaultOrderId" exact="if $ship.defaultorder? then $ship.defaultorder.id else null"/>
-        <set_value name="$snap.$captured" exact="player.age"/>
-        <set_value name="global.$LMP_Ships.{$ship}.$snapshot" exact="$snap"/>
-        <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'SNAPSHOTTED'"/>
-        <run_actions ref="GUNPIRE_Log">
-          <param name="component" value="'TAKEOVER'"/>
-          <param name="message" value="'Snapshot captured for ' + $ship.idcode"/>
-        </run_actions>
-        <return value="true"/>
+        <run_actions ref="GUNPIRE_LifecycleReadyForExecution" result="$ready"/>
+        <do_if value="not $ready">
+          <run_actions ref="GUNPIRE_Log">
+            <param name="level" value="0"/>
+            <param name="component" value="'TAKEOVER'"/>
+            <param name="message" value="'Snapshot blocked: complete behavior, parameters, orders, commander, and restoration contract is unverified for ' + $ship.idcode"/>
+          </run_actions>
+          <return value="false"/>
+        </do_if>
+        <return value="false"/>
       </actions>
     </library>
 
@@ -50,15 +47,34 @@
           </run_actions>
           <return value="false"/>
         </do_if>
-        <!-- Cargo / active job check: exact API pending; currently conservative -->
+        <do_if value="$ship.defaultorder? and ($ship.defaultorder.id == 'GalaxyTraderMK3' or $ship.defaultorder.id == 'GalaxyTraderMK1' or $ship.defaultorder.id == 'GalaxyTraderMK2' or $ship.defaultorder.id == 'GalaxyTraderMK4' or $ship.defaultorder.id == 'GalaxyTraderMK42')">
+          <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'BLOCKED_GT_UNSUPPORTED'"/>
+          <run_actions ref="GUNPIRE_Log">
+            <param name="level" value="0"/>
+            <param name="component" value="'TAKEOVER'"/>
+            <param name="message" value="'Hard-blocked Galaxy Trader 1.0.4 takeover for ' + $ship.idcode"/>
+          </run_actions>
+          <return value="false"/>
+        </do_if>
         <run_actions ref="GUNPIRE_SafetyCheckCargoEmpty" result="$empty">
           <param name="ship" value="$ship"/>
         </run_actions>
         <do_if value="not $empty">
-          <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'WAITING_FOR_ELIGIBILITY'"/>
+          <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'BLOCKED_CARGO_STATE_UNVERIFIED'"/>
           <run_actions ref="GUNPIRE_Log">
+            <param name="level" value="0"/>
             <param name="component" value="'TAKEOVER'"/>
-            <param name="message" value="'Waiting for eligibility ' + $ship.idcode"/>
+            <param name="message" value="'Rejected takeover: cargo is nonempty or cargo state is uncertain for ' + $ship.idcode"/>
+          </run_actions>
+          <return value="false"/>
+        </do_if>
+        <run_actions ref="GUNPIRE_LifecycleReadyForExecution" result="$ready"/>
+        <do_if value="not $ready">
+          <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'BLOCKED_LIFECYCLE_UNVERIFIED'"/>
+          <run_actions ref="GUNPIRE_Log">
+            <param name="level" value="0"/>
+            <param name="component" value="'TAKEOVER'"/>
+            <param name="message" value="'Rejected takeover: non-GT snapshot, order, and restoration contracts are unverified for ' + $ship.idcode"/>
           </run_actions>
           <return value="false"/>
         </do_if>
@@ -66,14 +82,9 @@
           <param name="ship" value="$ship"/>
         </run_actions>
         <do_if value="not $ok">
+          <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'BLOCKED_SNAPSHOT_UNVERIFIED'"/>
           <return value="false"/>
         </do_if>
-        <!-- GT permanent-removal gate: do not assign LMP default order until cooperative path verified -->
-        <run_actions ref="GUNPIRE_Log">
-          <param name="component" value="'TAKEOVER'"/>
-          <param name="message" value="'Snapshot OK but GT cooperative handoff not verified — takeover blocked for ' + $ship.idcode"/>
-        </run_actions>
-        <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'BLOCKED'"/>
         <return value="false"/>
       </actions>
     </library>

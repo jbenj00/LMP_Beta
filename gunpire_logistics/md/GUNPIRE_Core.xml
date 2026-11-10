@@ -41,11 +41,34 @@
         <param name="ship"/>
       </params>
       <actions>
-        <!-- Trade cargo only; ignore ammo/deployables/equipment. Exact check deferred to verified API. -->
-        <do_if value="$ship? and $ship.exists">
-          <return value="true"/> <!-- Placeholder until verified cargo query -->
+        <do_if value="not $ship? or not $ship.exists or not $ship.cargo?">
+          <run_actions ref="GUNPIRE_Log">
+            <param name="level" value="0"/>
+            <param name="component" value="'SAFETY'"/>
+            <param name="message" value="'Rejected takeover: ship cargo state is unavailable or uncertain'"/>
+          </run_actions>
+          <return value="false"/>
         </do_if>
-        <return value="false"/>
+        <do_all exact="$ship.cargo.count" counter="$i">
+          <set_value name="$ware" exact="$ship.cargo.{$i}"/>
+          <do_if value="not $ware? or not $ware.iscargo? or not $ware.isdeployable?">
+            <run_actions ref="GUNPIRE_Log">
+              <param name="level" value="0"/>
+              <param name="component" value="'SAFETY'"/>
+              <param name="message" value="'Rejected takeover: cargo ware classification is unavailable or uncertain'"/>
+            </run_actions>
+            <return value="false"/>
+          </do_if>
+          <do_if value="$ware.iscargo and not $ware.isdeployable">
+            <run_actions ref="GUNPIRE_Log">
+              <param name="level" value="0"/>
+              <param name="component" value="'SAFETY'"/>
+              <param name="message" value="'Rejected takeover: trade cargo remains on ' + $ship.idcode"/>
+            </run_actions>
+            <return value="false"/>
+          </do_if>
+        </do_all>
+        <return value="true"/>
       </actions>
     </library>
   </cues>

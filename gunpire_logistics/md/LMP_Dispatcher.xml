@@ -18,6 +18,15 @@
         <param name="ship"/>
       </params>
       <actions>
+        <run_actions ref="GUNPIRE_LifecycleReadyForExecution" result="$lifecycleReady"/>
+        <do_if value="not $lifecycleReady">
+          <run_actions ref="GUNPIRE_Log">
+            <param name="level" value="0"/>
+            <param name="component" value="'DISPATCH'"/>
+            <param name="message" value="'Blocked: purchase, destination deposit, and confirmation lifecycle is not verified'"/>
+          </run_actions>
+          <return value="false"/>
+        </do_if>
         <run_actions ref="GUNPIRE_AllowsRealOrders" result="$allows"/>
         <do_if value="not $allows">
           <run_actions ref="GUNPIRE_Log">
@@ -60,7 +69,7 @@
           </run_actions>
           <return value="false"/>
         </do_if>
-        <!-- Prefer verified shortage; fall back to first site + probe ware -->
+        <!-- Dispatch only a documented shortage; never invent a probe ware or quantity. -->
         <set_value name="$ware" exact="null"/>
         <set_value name="$site" exact="null"/>
         <set_value name="$qty" exact="0"/>
@@ -70,15 +79,13 @@
           <set_value name="$ware" exact="global.$LMP_Shortages.{$sk}.$ware"/>
           <set_value name="$qty" exact="global.$LMP_Shortages.{$sk}.$qty"/>
         </do_if>
-        <do_if value="not $ware? or not $site?">
-          <set_value name="$siteKey" exact="$demand.keys.{1}"/>
-          <set_value name="$site" exact="$demand.{$siteKey}.$buildstorage"/>
-          <set_value name="$ware" exact="ware.hullparts"/>
-          <set_value name="$qty" exact="100"/>
+        <do_if value="not $ware? or not $site? or $qty le 0">
           <run_actions ref="GUNPIRE_Log">
+            <param name="level" value="0"/>
             <param name="component" value="'DISPATCH'"/>
-            <param name="message" value="'No shortage table; using probe ware hullparts'"/>
+            <param name="message" value="'Blocked: no concrete, positive build-storage shortage is available'"/>
           </run_actions>
+          <return value="false"/>
         </do_if>
         <run_actions ref="LMP_FindSellOffers" result="$offers">
           <param name="ship" value="$ship"/>
@@ -101,7 +108,7 @@
           </run_actions>
           <return value="false"/>
         </do_if>
-        <set_value name="$job" exact="'JOB-' + $ship.idcode"/>
+        <set_value name="$job" exact="'JOB-' + $ship.idcode + '-' + global.$GUNPIRE_SessionId + '-' + player.age"/>
         <run_actions ref="LMP_Reserve" result="$reserved">
           <param name="ship" value="$ship"/>
           <param name="site" value="$site"/>
@@ -109,6 +116,15 @@
           <param name="qty" value="$qty"/>
           <param name="job" value="$job"/>
         </run_actions>
+        <do_if value="not $reserved">
+          <run_actions ref="GUNPIRE_Log">
+            <param name="level" value="0"/>
+            <param name="component" value="'DISPATCH'"/>
+            <param name="job" value="$job"/>
+            <param name="message" value="'Blocked: reservation could not be established; no order created'"/>
+          </run_actions>
+          <return value="false"/>
+        </do_if>
         <run_actions ref="LMP_CreateTradeOrder" result="$ok">
           <param name="ship" value="$ship"/>
           <param name="tradeoffer" value="$offer"/>
@@ -116,8 +132,14 @@
           <param name="job" value="$job"/>
         </run_actions>
         <do_if value="not $ok">
-          <run_actions ref="LMP_Release">
+          <set_value name="$reservationKey" exact="'$' + $job"/>
+          <set_value name="global.$LMP_Reservations.{$reservationKey}.$state" exact="'RECONCILIATION_REQUIRED'"/>
+          <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'RECONCILIATION_REQUIRED'"/>
+          <run_actions ref="GUNPIRE_Log">
+            <param name="level" value="0"/>
+            <param name="component" value="'DISPATCH'"/>
             <param name="job" value="$job"/>
+            <param name="message" value="'Order result is uncertain; reservation retained for safe reconciliation'"/>
           </run_actions>
         </do_if>
         <return value="$ok"/>
