@@ -16,7 +16,7 @@
         <set_value name="global.$GUNPIRE_Safety.$preserve_trader_progression" exact="true"/>
         <set_value name="global.$GUNPIRE_Safety.$enforce_reservations" exact="true"/>
         <set_value name="global.$GUNPIRE_Safety.$safe_restoration" exact="true"/>
-        <debug_text text="'[GUNPIRE][CONFIG] Profile=' + global.$GUNPIRE_Profile + ' safety kernel active'" chance="100"/>
+        <debug_text text="'[GUNPIRE][CONFIG] Profile=' + global.$GUNPIRE_Profile + ' safety kernel active; lifecycle execution hard-blocked pending X4 contract and runtime verification'" chance="100"/>
       </actions>
     </cue>
 
@@ -32,6 +32,13 @@
     <library name="GUNPIRE_AllowsRealOrders" purpose="run_actions">
       <actions>
         <return value="global.$GUNPIRE_Profile? and (global.$GUNPIRE_Profile == 'TEST_SINGLE_SHIP' or global.$GUNPIRE_Profile == 'TEST_FLEET' or global.$GUNPIRE_Profile == 'FULL')"/>
+      </actions>
+    </library>
+
+    <library name="GUNPIRE_LifecycleReadyForExecution" purpose="run_actions">
+      <actions>
+        <!-- No complete non-GT restore or destination-deposit contract is verified. -->
+        <return value="false"/>
       </actions>
     </library>
 

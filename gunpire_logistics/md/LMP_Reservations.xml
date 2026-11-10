@@ -25,11 +25,21 @@
         <param name="job" default="'none'"/>
       </params>
       <actions>
-        <do_if value="not global.$GUNPIRE_Safety.$enforce_reservations">
+        <do_if value="not global.$GUNPIRE_Safety.$enforce_reservations or not global.$LMP_Reservations? or not $job? or $qty le 0">
           <return value="false"/>
         </do_if>
         <set_value name="$key" exact="'$' + $job"/>
+        <do_if value="global.$LMP_Reservations.{$key}?">
+          <run_actions ref="GUNPIRE_Log">
+            <param name="level" value="0"/>
+            <param name="component" value="'RESERVE'"/>
+            <param name="job" value="$job"/>
+            <param name="message" value="'Rejected duplicate job reservation; existing commitment retained'"/>
+          </run_actions>
+          <return value="false"/>
+        </do_if>
         <set_value name="global.$LMP_Reservations.{$key}" exact="table[]"/>
+        <set_value name="global.$LMP_Reservations.{$key}.$job" exact="$job"/>
         <set_value name="global.$LMP_Reservations.{$key}.$ship" exact="$ship"/>
         <set_value name="global.$LMP_Reservations.{$key}.$site" exact="$site"/>
         <set_value name="global.$LMP_Reservations.{$key}.$ware" exact="$ware"/>
@@ -51,8 +61,18 @@
       <actions>
         <set_value name="$key" exact="'$' + $job"/>
         <do_if value="global.$LMP_Reservations.{$key}?">
+          <do_if value="global.$LMP_Reservations.{$key}.$state != 'DELIVERY_CONFIRMED' and global.$LMP_Reservations.{$key}.$state != 'SAFE_RECONCILIATION_COMPLETE'">
+            <run_actions ref="GUNPIRE_Log">
+              <param name="level" value="0"/>
+              <param name="component" value="'RESERVE'"/>
+              <param name="job" value="$job"/>
+              <param name="message" value="'Rejected reservation release before confirmed delivery or safe reconciliation'"/>
+            </run_actions>
+            <return value="false"/>
+          </do_if>
           <remove_value name="global.$LMP_Reservations.{$key}"/>
           <run_actions ref="GUNPIRE_Log">
+            <param name="level" value="0"/>
             <param name="component" value="'RESERVE'"/>
             <param name="job" value="$job"/>
             <param name="message" value="'Released reservation'"/>
