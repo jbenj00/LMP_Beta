@@ -7,7 +7,12 @@
         <param name="ship"/>
       </params>
       <actions>
-        <do_if value="not $ship? or not $ship.exists">
+        <do_if value="not $ship? or not $ship.exists or not global.$LMP_Ships? or not global.$LMP_Ships.{$ship}?">
+          <return value="false"/>
+        </do_if>
+        <!-- A saved GT snapshot is evidence of a pending handoff. Never
+             replace it with a newer snapshot without a verified restore. -->
+        <do_if value="global.$LMP_Ships.{$ship}.$snapshot? and global.$LMP_Ships.{$ship}.$snapshot != null">
           <return value="false"/>
         </do_if>
         <set_value name="$snap" exact="table[]"/>
@@ -50,6 +55,25 @@
           </run_actions>
           <return value="false"/>
         </do_if>
+        <!-- ACTIVE borrowing is restricted to explicitly enrolled GT
+             ships. PASSIVE and other trader defaults remain untouched. -->
+        <do_if value="not $ship? or not $ship.exists or not $ship.isplayerowned or not global.$LMP_Ships? or not global.$LMP_Ships.{$ship}? or global.$LMP_Ships.{$ship}.$role != 'ACTIVE'">
+          <return value="false"/>
+        </do_if>
+        <run_actions ref="md.GUNPIRE_Core.GUNPIRE_IsGTManagedShip" result="$gt"/>
+        <do_if value="not $gt">
+          <return value="false"/>
+        </do_if>
+        <do_if value="global.$LMP_Ships.{$ship}.$job? and global.$LMP_Ships.{$ship}.$job != null">
+          <return value="false"/>
+        </do_if>
+        <do_if value="global.$LMP_Ships.{$ship}.$snapshot? and global.$LMP_Ships.{$ship}.$snapshot != null">
+          <return value="false"/>
+        </do_if>
+        <do_if value="$ship.tradeorders? and $ship.tradeorders.count gt 0">
+          <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'WAITING_FOR_ELIGIBILITY'"/>
+          <return value="false"/>
+        </do_if>
         <!-- Cargo / active job check: exact API pending; currently conservative -->
         <run_actions ref="md.GUNPIRE_Core.GUNPIRE_SafetyCheckCargoEmpty" result="$empty">
           <param name="ship" value="$ship"/>
@@ -73,7 +97,7 @@
           <param name="component" value="'TAKEOVER'"/>
           <param name="message" value="'Snapshot OK but GT cooperative handoff not verified — takeover blocked for ' + $ship.idcode"/>
         </run_actions>
-        <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'BLOCKED'"/>
+        <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'BLOCKED_GT_HANDOFF'"/>
         <return value="false"/>
       </actions>
     </library>
