@@ -13,6 +13,11 @@
         <do_if value="not global.$LMP_Wings?">
           <set_value name="global.$LMP_Wings" exact="table[]"/>
         </do_if>
+        <!-- Always opt out by default; enabling execution must be an
+             explicit player action after version-specific testing. -->
+        <do_if value="not global.$LMP_Wing_ExecuteEnabled?">
+          <set_value name="global.$LMP_Wing_ExecuteEnabled" exact="false"/>
+        </do_if>
       </actions>
     </cue>
 
@@ -33,6 +38,7 @@
         <do_if value="not global.$LMP_Wings.{$commander}?">
           <set_value name="global.$LMP_Wings.{$commander}" exact="table[]"/>
           <set_value name="global.$LMP_Wings.{$commander}.$state" exact="'OBSERVE_ONLY'"/>
+          <set_value name="global.$LMP_Wings.{$commander}.$executeEnabled" exact="false"/>
           <set_value name="global.$LMP_Wings.{$commander}.$jobsCompleted" exact="0"/>
         </do_if>
         <return value="true"/>
