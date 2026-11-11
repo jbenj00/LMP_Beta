@@ -176,18 +176,35 @@
         <do_if value="$ship.tradeorders? and $ship.tradeorders.count gt 0">
           <return value="false"/>
         </do_if>
-        <!-- Retry only the original target offer. No inferred destination,
-             silent seller substitution, or new ware selection. -->
-        <do_if value="not $entry.$targetOffer? or not $entry.$targetOffer.exists or not $entry.$targetOffer.available">
+        <!-- Trade offers are ephemeral across save/load and station
+             inventory changes. Re-find ONLY at the original reserved
+             buyer, using the actual ship's trade permissions. This is
+             not permission to divert cargo to a different station. -->
+        <find_buy_offer result="$liveOffers" buyer="$reservation.$site" multiple="true" tradepartner="$ship"/>
+        <set_value name="$targetOffer" exact="null"/>
+        <do_if value="$liveOffers?">
+          <do_for_each name="$candidateOffer" in="$liveOffers">
+            <do_if value="not $candidateOffer? or not $candidateOffer.exists or not $candidateOffer.available">
+              <continue/>
+            </do_if>
+            <do_if value="$candidateOffer.ware != $reservation.$ware or $candidateOffer.amount lt $entry.$purchasedQty">
+              <continue/>
+            </do_if>
+            <set_value name="$targetOffer" exact="$candidateOffer"/>
+            <break/>
+          </do_for_each>
+        </do_if>
+        <do_if value="not $targetOffer?">
+          <!-- No viable live offer at the ORIGINAL destination; keep
+               cargo, reservation and stopRequested untouched. -->
           <return value="false"/>
         </do_if>
-        <do_if value="$entry.$targetOffer.ware != $reservation.$ware or $entry.$targetOffer.amount lt $entry.$purchasedQty">
-          <return value="false"/>
-        </do_if>
-        <create_trade_order object="$ship" tradeoffer="$entry.$targetOffer" amount="$entry.$purchasedQty" name="$recoveryOrder"/>
+        <create_trade_order object="$ship" tradeoffer="$targetOffer" amount="$entry.$purchasedQty" name="$recoveryOrder"/>
         <do_if value="not $recoveryOrder?">
           <return value="false"/>
         </do_if>
+        <!-- Retain the newly issued live offer for cancellation matching. -->
+        <set_value name="global.$LMP_Ships.{$ship}.$targetOffer" exact="$targetOffer"/>
         <set_value name="global.$LMP_Ships.{$ship}.$deliverOrder" exact="$recoveryOrder"/>
         <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'DELIVERING'"/>
         <!-- Keep stopRequested true so a successfully reconciled shipment
