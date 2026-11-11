@@ -182,6 +182,12 @@
           <set_value name="global.$LMP_Ships.{$ship}.$job" exact="$job"/>
           <return value="false"/>
         </do_if>
+        <!-- Persist the intended amount before any event can complete.
+             Actual purchase/delivery quantities come from trade-deal
+             transferredamount, never from requested order amount. -->
+        <set_value name="global.$LMP_Ships.{$ship}.$requestedQty" exact="$qty"/>
+        <set_value name="global.$LMP_Ships.{$ship}.$purchasedQty" exact="0"/>
+        <set_value name="global.$LMP_Ships.{$ship}.$deliveredQty" exact="0"/>
         <!-- Keep the live offers only while this job is unresolved.
              Trade-cancelled events expose an offer, NOT a trade order. -->
         <set_value name="global.$LMP_Ships.{$ship}.$sourceOffer" exact="$offer"/>
