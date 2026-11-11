@@ -9,7 +9,7 @@
         <do_if value="not global.$LMP_Reservations?">
           <set_value name="global.$LMP_Reservations" exact="table[]"/>
         </do_if>
-        <run_actions ref="GUNPIRE_Log">
+        <run_actions ref="md.GUNPIRE_Core.GUNPIRE_Log">
           <param name="component" value="'RESERVE'"/>
           <param name="message" value="'Reservation ledger ready'"/>
         </run_actions>
@@ -35,7 +35,7 @@
         <set_value name="global.$LMP_Reservations.{$key}.$ware" exact="$ware"/>
         <set_value name="global.$LMP_Reservations.{$key}.$qty" exact="$qty"/>
         <set_value name="global.$LMP_Reservations.{$key}.$state" exact="'RESERVED'"/>
-        <run_actions ref="GUNPIRE_Log">
+        <run_actions ref="md.GUNPIRE_Core.GUNPIRE_Log">
           <param name="component" value="'RESERVE'"/>
           <param name="job" value="$job"/>
           <param name="message" value="'Reserved ' + $qty + ' of ware for ' + (if $ship? then $ship.idcode else 'null')"/>
@@ -52,7 +52,7 @@
         <set_value name="$key" exact="'$' + $job"/>
         <do_if value="global.$LMP_Reservations.{$key}?">
           <remove_value name="global.$LMP_Reservations.{$key}"/>
-          <run_actions ref="GUNPIRE_Log">
+          <run_actions ref="md.GUNPIRE_Core.GUNPIRE_Log">
             <param name="component" value="'RESERVE'"/>
             <param name="job" value="$job"/>
             <param name="message" value="'Released reservation'"/>
