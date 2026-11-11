@@ -29,6 +29,12 @@
           </run_actions>
           <return value="false"/>
         </do_if>
+        <!-- ACTIVE GT ship borrowing was retired by project decision.
+             Reject new legacy ACTIVE registrations without touching
+             previously saved entries or another mod's ship behavior. -->
+        <do_if value="$role == 'ACTIVE'">
+          <return value="false"/>
+        </do_if>
         <!-- PASSIVE belongs to the construction fleet only. A registered
              LMP MK3 wing commander or direct wing member may not be enrolled
              into PASSIVE, even when idle and cargo-empty. No reassignment. -->
