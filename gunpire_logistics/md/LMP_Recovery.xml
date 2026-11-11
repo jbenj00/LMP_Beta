@@ -63,13 +63,22 @@
         <do_if value="global.$LMP_Ships.{$ship}.$state != 'RECONCILE_ON_LOAD'">
           <return value="false"/>
         </do_if>
-        <!-- The saved job and its reservation must agree. A missing or
-             mismatched ledger entry cannot be silently reconstructed from
-             a cargo hold or a queued trade order. -->
-        <set_value name="$job" exact="global.$LMP_Ships.{$ship}.$job"/>
-        <set_value name="$key" exact="'
-             verified tail, and any previously investigated failure. -->
-        <do_if value="global.$LMP_Ships.{$ship}.$state != 'RECONCILE_ON_LOAD'">
+        <!-- Resolve the persisted reservation key rather than rebuilding
+             a job identifier after load. Missing metadata fails closed. -->
+        <do_if value="not global.$LMP_Ships.{$ship}.$reservationKey? or not global.$LMP_Reservations?">
+          <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'RESERVATION_MISSING_RECONCILE'"/>
+          <set_value name="global.$LMP_Ships.{$ship}.$stopRequested" exact="true"/>
+          <return value="false"/>
+        </do_if>
+        <set_value name="$key" exact="global.$LMP_Ships.{$ship}.$reservationKey"/>
+        <do_if value="not global.$LMP_Reservations.{$key}?">
+          <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'RESERVATION_MISSING_RECONCILE'"/>
+          <set_value name="global.$LMP_Ships.{$ship}.$stopRequested" exact="true"/>
+          <return value="false"/>
+        </do_if>
+        <do_if value="global.$LMP_Reservations.{$key}.$ship != $ship">
+          <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'RESERVATION_MISMATCH_RECONCILE'"/>
+          <set_value name="global.$LMP_Ships.{$ship}.$stopRequested" exact="true"/>
           <return value="false"/>
         </do_if>
         <do_if value="not $ship.cargo.list?">
