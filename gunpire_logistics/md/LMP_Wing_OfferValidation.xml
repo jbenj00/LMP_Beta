@@ -27,6 +27,11 @@
         <set_value name="$result" exact="[]"/>
         <set_value name="$allowed" exact="0"/>
         <set_value name="$rejected" exact="0"/>
+        <!-- All wing ships share one physical seller stock and one buyer
+             demand budget. A per-ship quote is not additional stock. -->
+        <set_value name="$remainingSource" exact="0"/>
+        <set_value name="$remainingTarget" exact="0"/>
+        <set_value name="$budgetSet" exact="false"/>
         <do_for_each name="$a" in="$plan.$assignments">
           <set_value name="$ship" exact="$a.$ship"/>
           <set_value name="$ware" exact="$a.$ware"/>
@@ -42,12 +47,19 @@
           <do_if value="$valid">
             <set_value name="$sourceQty" exact="$buy.offeramount.{$ship}"/>
             <set_value name="$sinkQty" exact="$sell.offeramount.{$ship}"/>
-            <set_value name="$qty" exact="[$qty, $sourceQty, $sinkQty].min"/>
+            <do_if value="not $budgetSet">
+              <set_value name="$remainingSource" exact="$sourceQty"/>
+              <set_value name="$remainingTarget" exact="$sinkQty"/>
+              <set_value name="$budgetSet" exact="true"/>
+            </do_if>
+            <set_value name="$qty" exact="[$qty, $sourceQty, $sinkQty, $remainingSource, $remainingTarget].min"/>
             <set_value name="$valid" exact="$qty gt 0"/>
           </do_if>
           <do_if value="$valid">
             <append_to_list name="$result" exact="table[$ship = $ship, $ware = $ware, $amount = $qty, $buyOffer = $buy, $sellOffer = $sell]"/>
             <set_value name="$allowed" exact="$allowed + $qty"/>
+            <set_value name="$remainingSource" exact="$remainingSource - $qty"/>
+            <set_value name="$remainingTarget" exact="$remainingTarget - $qty"/>
           </do_if>
           <do_else>
             <set_value name="$rejected" exact="$rejected + 1"/>
