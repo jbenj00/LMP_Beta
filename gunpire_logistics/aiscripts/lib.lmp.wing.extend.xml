@@ -55,6 +55,12 @@
            additional escorts from the same wallet. -->
       <set_value name="$commanderCommittedCost" exact="if $buyInternal then 0 else ($commanderAmount * $commanderUnitPrice)"/>
       <set_value name="$wingCash" exact="$wingAccount.$Money - 1000Cr - $commanderCommittedCost"/>
+      <!-- Shared offer budget: every subordinate is quoting the SAME
+           seller and buyer. Reserve the commander's already-created
+           order and subtract each wing assignment. This avoids allocating
+           the same station stock/demand once per ship. -->
+      <set_value name="$sharedSourceRemaining" exact="-1"/>
+      <set_value name="$sharedSinkRemaining" exact="-1"/>
       <do_for_each name="$ship" in="$commander.subordinates">
         <do_if value="$remaining le 0">
           <break/>
@@ -104,7 +110,13 @@
         </do_if>
         <set_value name="$sellerUnits" exact="$source.offeramount.{$ship}"/>
         <set_value name="$buyerUnits" exact="$sink.offeramount.{$ship}"/>
-        <set_value name="$qty" exact="[$remaining, $fits, $sellerUnits, $buyerUnits].min"/>
+        <do_if value="$sharedSourceRemaining lt 0">
+          <set_value name="$sharedSourceRemaining" exact="[$sellerUnits - $commanderAmount, 0].max"/>
+        </do_if>
+        <do_if value="$sharedSinkRemaining lt 0">
+          <set_value name="$sharedSinkRemaining" exact="[$buyerUnits - $commanderAmount, 0].max"/>
+        </do_if>
+        <set_value name="$qty" exact="[$remaining, $fits, $sellerUnits, $buyerUnits, $sharedSourceRemaining, $sharedSinkRemaining].min"/>
         <do_if value="$qty le 0">
           <continue/>
         </do_if>
@@ -138,6 +150,8 @@
         </do_if>
         <set_value name="$assigned" exact="$assigned + $qty"/>
         <set_value name="$remaining" exact="$remaining - $qty"/>
+        <set_value name="$sharedSourceRemaining" exact="$sharedSourceRemaining - $qty"/>
+        <set_value name="$sharedSinkRemaining" exact="$sharedSinkRemaining - $qty"/>
         <set_value name="$shipsUsed" exact="$shipsUsed + 1"/>
         <!-- Notify MD only after both native trade orders were requested.
              MD records accounting; it never replaces the underlying orders. -->
