@@ -64,17 +64,18 @@
         <do_if value="$gt">
           <return value="false"/>
         </do_if>
+        <!-- Do not change a ship that has cargo or a queued job. -->
+        <run_actions ref="md.LMP_TradeCycle.LMP_TripIsFullyFinished" result="$idle">
+          <param name="ship" value="$ship"/>
+        </run_actions>
+        <do_if value="not $idle">
+          <return value="false"/>
+        </do_if>
         <run_actions ref="md.LMP_ShipRegistry.LMP_EnrollShip" result="$enrolled">
           <param name="ship" value="$ship"/>
           <param name="role" value="'PASSIVE'"/>
         </run_actions>
         <do_if value="not $enrolled or global.$LMP_Ships.{$ship}.$role != 'PASSIVE'">
-          <return value="false"/>
-        </do_if>
-        <run_actions ref="md.LMP_TradeCycle.LMP_TripIsFullyFinished" result="$idle">
-          <param name="ship" value="$ship"/>
-        </run_actions>
-        <do_if value="not $idle">
           <return value="false"/>
         </do_if>
         <!-- Explicit player action assigns the permanent PASSIVE default order.
@@ -84,7 +85,9 @@
         </do_if>
         <set_value name="global.$LMP_Ships.{$ship}.$stopRequested" exact="false"/>
         <run_actions ref="md.LMP_Dispatcher.LMP_DispatchOne" result="$ok"><param name="ship" value="$ship"/></run_actions>
-        <return value="$ok"/>
+        <!-- Enrollment succeeds even when no buy offers are available yet;
+             the permanent passive order retries from the next idle tick. -->
+        <return value="true"/>
       </actions>
     </library>
 
