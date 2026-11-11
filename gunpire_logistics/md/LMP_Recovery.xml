@@ -21,7 +21,7 @@
                    Never infer successful delivery from an empty hold alone. -->
               <!-- Quarantined/cancelled trades require explicit investigation.
                    Do not overwrite their durable failure state on load. -->
-              <do_if value="global.$LMP_Ships.{$ship}.$state != 'DELIVERY_RECONCILE' and global.$LMP_Ships.{$ship}.$state != 'QUARANTINED' and global.$LMP_Ships.{$ship}.$state != 'TRADE_CANCELLED_RECONCILE' and global.$LMP_Ships.{$ship}.$state != 'QUANTITY_RECONCILE' and global.$LMP_Ships.{$ship}.$state != 'STRANDED_CARGO_RECONCILE' and global.$LMP_Ships.{$ship}.$state != 'MISSING_ORDER_RECONCILE' and global.$LMP_Ships.{$ship}.$state != 'CARGO_UNKNOWN_RECONCILE'">
+              <do_if value="global.$LMP_Ships.{$ship}.$state != 'DELIVERY_RECONCILE' and global.$LMP_Ships.{$ship}.$state != 'QUARANTINED' and global.$LMP_Ships.{$ship}.$state != 'TRADE_CANCELLED_RECONCILE' and global.$LMP_Ships.{$ship}.$state != 'QUANTITY_RECONCILE' and global.$LMP_Ships.{$ship}.$state != 'STRANDED_CARGO_RECONCILE' and global.$LMP_Ships.{$ship}.$state != 'MISSING_ORDER_RECONCILE' and global.$LMP_Ships.{$ship}.$state != 'CARGO_UNKNOWN_RECONCILE' and global.$LMP_Ships.{$ship}.$state != 'RESERVATION_MISSING_RECONCILE' and global.$LMP_Ships.{$ship}.$state != 'RESERVATION_MISMATCH_RECONCILE'">
                 <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'RECONCILE_ON_LOAD'"/>
                 <append_to_list name="$pendingAudits" exact="$ship"/>
               </do_if>
@@ -56,6 +56,237 @@
           <return value="false"/>
         </do_if>
         <do_if value="not global.$LMP_Ships.{$ship}.$job? or global.$LMP_Ships.{$ship}.$job == null">
+          <return value="false"/>
+        </do_if>
+        <!-- The saved job and its reservation must agree. A missing or
+             mismatched ledger entry cannot be silently reconstructed from
+             a cargo hold or a queued trade order. -->
+        <set_value name="$job" exact="global.$LMP_Ships.{$ship}.$job"/>
+        <set_value name="$key" exact="'
+             verified tail, and any previously investigated failure. -->
+        <do_if value="global.$LMP_Ships.{$ship}.$state != 'RECONCILE_ON_LOAD'">
+          <return value="false"/>
+        </do_if>
+        <do_if value="not $ship.cargo.list?">
+          <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'CARGO_UNKNOWN_RECONCILE'"/>
+          <set_value name="global.$LMP_Ships.{$ship}.$stopRequested" exact="true"/>
+          <return value="false"/>
+        </do_if>
+        <!-- The trade queue may survive load intact. Keep observing it:
+             a completion event, not this audit, proves delivery. -->
+        <do_if value="$ship.tradeorders? and $ship.tradeorders.count gt 0">
+          <return value="true"/>
+        </do_if>
+        <do_if value="$ship.cargo.list.count gt 0">
+          <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'STRANDED_CARGO_RECONCILE'"/>
+          <run_actions ref="md.GUNPIRE_Core.GUNPIRE_Log">
+            <param name="component" value="'RECOVERY'"/>
+            <param name="message" value="'In-flight job has cargo but no queued trade orders on ' + $ship.idcode + '; preserved for reconciliation'"/>
+          </run_actions>
+        </do_if>
+        <do_else>
+          <!-- An empty hold is NOT evidence of a completed delivery. -->
+          <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'MISSING_ORDER_RECONCILE'"/>
+          <run_actions ref="md.GUNPIRE_Core.GUNPIRE_Log">
+            <param name="component" value="'RECOVERY'"/>
+            <param name="message" value="'In-flight job has no cargo or trade orders on ' + $ship.idcode + '; completion unproven'"/>
+          </run_actions>
+        </do_else>
+        <set_value name="global.$LMP_Ships.{$ship}.$stopRequested" exact="true"/>
+        <return value="false"/>
+      </actions>
+    </library>
+
+    <!-- X4 rml_deliver_wares.xml and jkeoc recovery workflow use a
+         completed trade deal's transferredamount as the actual quantity.
+         Matched partials are legitimate, but purchased and delivered
+         amounts must agree before any reservation is released. -->
+    <library name="LMP_VerifyActualDelivery" purpose="run_actions">
+      <params><param name="ship"/></params>
+      <actions>
+        <do_if value="not $ship? or not $ship.exists or not global.$LMP_Ships? or not global.$LMP_Ships.{$ship}?">
+          <return value="false"/>
+        </do_if>
+        <set_value name="$entry" exact="global.$LMP_Ships.{$ship}"/>
+        <do_if value="not $entry.$requestedQty? or not $entry.$purchasedQty? or not $entry.$deliveredQty?">
+          <return value="false"/>
+        </do_if>
+        <do_if value="$entry.$requestedQty le 0 or $entry.$purchasedQty le 0 or $entry.$deliveredQty le 0">
+          <return value="false"/>
+        </do_if>
+        <do_if value="$entry.$purchasedQty != $entry.$deliveredQty or $entry.$deliveredQty gt $entry.$requestedQty">
+          <return value="false"/>
+        </do_if>
+        <return value="true"/>
+      </actions>
+    </library>
+
+    <!-- The delivery-completed event can precede the final removal
+         of trade orders. Only a recorded delivery-completion state may
+         reconcile later; an unobserved/missing purchase never qualifies. -->
+    <library name="LMP_ReconcileDeliveryTail" purpose="run_actions">
+      <params><param name="ship"/></params>
+      <actions>
+        <do_if value="not $ship? or not $ship.exists or not global.$LMP_Ships? or not global.$LMP_Ships.{$ship}?">
+          <return value="false"/>
+        </do_if>
+        <do_if value="global.$LMP_Ships.{$ship}.$state != 'DELIVERY_RECONCILE' or not global.$LMP_Ships.{$ship}.$job? or global.$LMP_Ships.{$ship}.$job == null">
+          <return value="false"/>
+        </do_if>
+        <run_actions ref="md.LMP_TradeCycle.LMP_TripIsFullyFinished" result="$finished">
+          <param name="ship" value="$ship"/>
+        </run_actions>
+        <do_if value="not $finished">
+          <return value="false"/>
+        </do_if>
+        <run_actions ref="md.LMP_Recovery.LMP_VerifyActualDelivery" result="$quantityMatches">
+          <param name="ship" value="$ship"/>
+        </run_actions>
+        <do_if value="not $quantityMatches">
+          <!-- Unknown, zero or mismatched quantities are not proof of
+               a complete transaction, even with empty cargo. -->
+          <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'QUANTITY_RECONCILE'"/>
+          <set_value name="global.$LMP_Ships.{$ship}.$stopRequested" exact="true"/>
+          <return value="false"/>
+        </do_if>
+        <set_value name="$job" exact="global.$LMP_Ships.{$ship}.$job"/>
+        <run_actions ref="md.LMP_Reservations.LMP_Release">
+          <param name="job" value="$job"/>
+        </run_actions>
+        <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'REEVALUATING'"/>
+        <set_value name="global.$LMP_Ships.{$ship}.$job" exact="null"/>
+        <set_value name="global.$LMP_Ships.{$ship}.$buyOrder" exact="null"/>
+        <set_value name="global.$LMP_Ships.{$ship}.$deliverOrder" exact="null"/>
+        <set_value name="global.$LMP_Ships.{$ship}.$sourceOffer" exact="null"/>
+        <set_value name="global.$LMP_Ships.{$ship}.$targetOffer" exact="null"/>
+        <set_value name="global.$LMP_Ships.{$ship}.$requestedQty" exact="null"/>
+        <set_value name="global.$LMP_Ships.{$ship}.$purchasedQty" exact="null"/>
+        <set_value name="global.$LMP_Ships.{$ship}.$deliveredQty" exact="null"/>
+        <return value="true"/>
+      </actions>
+    </library>
+
+    <cue name="LMP_OnTradeCompleted" instantiate="true">
+      <conditions><event_trade_completed space="player.galaxy"/></conditions>
+      <delay exact="1s"/>
+      <actions>
+        <do_if value="not event.param2? or not global.$LMP_Ships?">
+          <return/>
+        </do_if>
+        <!-- X4 event.param2 is the completed trade deal. Match our
+             stored handles directly; do not depend on an undocumented
+             trade-deal .object property to recover the ship. -->
+        <set_value name="$order" exact="event.param2"/>
+        <set_value name="$ship" exact="null"/>
+        <do_for_each name="$candidate" in="global.$LMP_Ships.keys">
+          <do_if value="not $candidate? or not $candidate.exists">
+            <continue/>
+          </do_if>
+          <do_if value="$order == global.$LMP_Ships.{$candidate}.$buyOrder or $order == global.$LMP_Ships.{$candidate}.$deliverOrder">
+            <set_value name="$ship" exact="$candidate"/>
+            <break/>
+          </do_if>
+        </do_for_each>
+        <do_if value="not $ship? or not global.$LMP_Ships.{$ship}.$deliverOrder?">
+          <return/>
+        </do_if>
+        <!-- A cancel or partial-order failure is terminal until explicit
+             reconciliation. Late completion events cannot clear its job. -->
+        <do_if value="global.$LMP_Ships.{$ship}.$state == 'QUARANTINED' or global.$LMP_Ships.{$ship}.$state == 'TRADE_CANCELLED_RECONCILE' or global.$LMP_Ships.{$ship}.$state == 'QUANTITY_RECONCILE'">
+          <return/>
+        </do_if>
+        <!-- The purchase event NEVER releases the reservation. -->
+        <do_if value="$order == global.$LMP_Ships.{$ship}.$buyOrder">
+          <!-- Event's deal carries executed units, not requested units. -->
+          <set_value name="global.$LMP_Ships.{$ship}.$purchasedQty" exact="if $order.transferredamount? then $order.transferredamount else 0"/>
+          <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'DELIVERING'"/>
+          <return/>
+        </do_if>
+        <do_if value="$order != global.$LMP_Ships.{$ship}.$deliverOrder">
+          <return/>
+        </do_if>
+        <set_value name="global.$LMP_Ships.{$ship}.$deliveredQty" exact="if $order.transferredamount? then $order.transferredamount else 0"/>
+        <run_actions ref="md.LMP_TradeCycle.LMP_TripIsFullyFinished" result="$complete">
+          <param name="ship" value="$ship"/>
+        </run_actions>
+        <do_if value="not $complete">
+          <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'DELIVERY_RECONCILE'"/>
+          <return/>
+        </do_if>
+        <run_actions ref="md.LMP_Recovery.LMP_VerifyActualDelivery" result="$quantityMatches">
+          <param name="ship" value="$ship"/>
+        </run_actions>
+        <do_if value="not $quantityMatches">
+          <!-- Unknown, zero or mismatched quantities are not proof of
+               a complete transaction, even with empty cargo. -->
+          <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'QUANTITY_RECONCILE'"/>
+          <set_value name="global.$LMP_Ships.{$ship}.$stopRequested" exact="true"/>
+          <return value="false"/>
+        </do_if>
+        <set_value name="$job" exact="global.$LMP_Ships.{$ship}.$job"/>
+        <run_actions ref="md.LMP_Reservations.LMP_Release"><param name="job" value="$job"/></run_actions>
+        <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'REEVALUATING'"/>
+        <set_value name="global.$LMP_Ships.{$ship}.$job" exact="null"/>
+        <set_value name="global.$LMP_Ships.{$ship}.$buyOrder" exact="null"/>
+        <set_value name="global.$LMP_Ships.{$ship}.$deliverOrder" exact="null"/>
+        <set_value name="global.$LMP_Ships.{$ship}.$sourceOffer" exact="null"/>
+        <set_value name="global.$LMP_Ships.{$ship}.$targetOffer" exact="null"/>
+        <set_value name="global.$LMP_Ships.{$ship}.$requestedQty" exact="null"/>
+        <set_value name="global.$LMP_Ships.{$ship}.$purchasedQty" exact="null"/>
+        <set_value name="global.$LMP_Ships.{$ship}.$deliveredQty" exact="null"/>
+        <!-- Stop takes precedence over another dispatch. Only our own
+             PASSIVE default is cancelled; no queue/cargo flush occurs. -->
+        <do_if value="global.$LMP_Ships.{$ship}.$stopRequested? and global.$LMP_Ships.{$ship}.$stopRequested">
+          <run_actions ref="md.LMP_ShipRegistry.LMP_FinalizePassiveStop" result="$released">
+            <param name="ship" value="$ship"/>
+          </run_actions>
+          <return/>
+        </do_if>
+        <!-- Every completed trip re-ranks current demand from the ship's
+             position, using fresh offers and reservations. -->
+        <run_actions ref="md.LMP_Dispatcher.LMP_DispatchOne" result="$next">
+          <param name="ship" value="$ship"/>
+        </run_actions>
+      </actions>
+    </cue>
+    <cue name="LMP_OnTradeCancelled" instantiate="true">
+      <conditions><event_trade_cancelled space="player.galaxy"/></conditions>
+      <actions>
+        <!-- X4 common.xsd: trade-cancelled exposes event.param = tradeoffer,
+             NOT event.param2 = tradeorder. It cannot uniquely identify a
+             ship. Conservatively quarantine EVERY in-flight LMP job which
+             references the cancelled offer, and never alter other traders. -->
+        <do_if value="not event.param? or not global.$LMP_Ships?">
+          <return/>
+        </do_if>
+        <set_value name="$cancelledOffer" exact="event.param"/>
+        <do_for_each name="$ship" in="global.$LMP_Ships.keys">
+          <do_if value="not $ship? or not $ship.exists or not global.$LMP_Ships.{$ship}.$job? or global.$LMP_Ships.{$ship}.$job == null">
+            <continue/>
+          </do_if>
+          <do_if value="$cancelledOffer != global.$LMP_Ships.{$ship}.$sourceOffer and $cancelledOffer != global.$LMP_Ships.{$ship}.$targetOffer">
+            <continue/>
+          </do_if>
+          <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'TRADE_CANCELLED_RECONCILE'"/>
+          <set_value name="global.$LMP_Ships.{$ship}.$stopRequested" exact="true"/>
+          <run_actions ref="md.GUNPIRE_Core.GUNPIRE_Log">
+            <param name="component" value="'RECOVERY'"/>
+            <param name="message" value="'Cancelled offer matches active GUNPIRE job on ' + $ship.idcode + '; preserving cargo and reservation for reconciliation'"/>
+          </run_actions>
+        </do_for_each>
+      </actions>
+    </cue>
+  </cues>
+</mdscript>
+ + $job"/>
+        <do_if value="not global.$LMP_Reservations? or not global.$LMP_Reservations.{$key}?">
+          <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'RESERVATION_MISSING_RECONCILE'"/>
+          <set_value name="global.$LMP_Ships.{$ship}.$stopRequested" exact="true"/>
+          <return value="false"/>
+        </do_if>
+        <do_if value="global.$LMP_Reservations.{$key}.$ship != $ship">
+          <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'RESERVATION_MISMATCH_RECONCILE'"/>
+          <set_value name="global.$LMP_Ships.{$ship}.$stopRequested" exact="true"/>
           <return value="false"/>
         </do_if>
         <!-- Respect terminal states, completed delivery awaiting the
