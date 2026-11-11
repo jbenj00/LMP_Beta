@@ -21,6 +21,15 @@
           <return/>
         </do_if>
         <do_if value="global.$LMP_Ships? and global.$LMP_Ships.{$ship}? and global.$LMP_Ships.{$ship}.$role == 'PASSIVE'">
+          <!-- Read-only status stays available even when Stop is pending
+               or recovery has quarantined the ship. -->
+          <signal_cue_instantly cue="md.Interact_Menu_API.Add_Action" param="table[
+            $id = 'lmp_passive_status',
+            $section = 'selected_orders',
+            $text = 'LMP: Passive Logistics Status',
+            $icon = 'order_tradeperform',
+            $callback = LMP_PassiveStatusAction,
+          ]"/>
           <!-- While a stop is pending, never expose Start/reenrollment.
                In-flight reservations still belong to this ship. -->
           <do_if value="not global.$LMP_Ships.{$ship}.$stopRequested? or not global.$LMP_Ships.{$ship}.$stopRequested">
@@ -91,6 +100,23 @@
         <run_actions ref="md.LMP_Dispatcher.LMP_DispatchOne" result="$started">
           <param name="ship" value="$ship"/>
         </run_actions>
+      </actions>
+    </cue>
+
+    <cue name="LMP_PassiveStatusAction" instantiate="true" namespace="this">
+      <conditions><event_cue_signalled/></conditions>
+      <actions>
+        <set_value name="$ship" exact="@event.param.$object"/>
+        <do_if value="not $ship? or not $ship.exists or not global.$LMP_Ships? or not global.$LMP_Ships.{$ship}? or global.$LMP_Ships.{$ship}.$role != 'PASSIVE'">
+          <return/>
+        </do_if>
+        <set_value name="$entry" exact="global.$LMP_Ships.{$ship}"/>
+        <set_value name="$status" exact="$entry.$state"/>
+        <set_value name="$job" exact="if $entry.$job? and $entry.$job != null then $entry.$job else 'none'"/>
+        <set_value name="$orders" exact="if $ship.tradeorders? then $ship.tradeorders.count else 0"/>
+        <set_value name="$hold" exact="if $ship.cargo.list? then $ship.cargo.list.count else 0"/>
+        <show_notification text="'LMP PASSIVE ' + $ship.idcode + ': ' + $status + '; job=' + $job + '; trade orders=' + $orders + '; cargo types=' + $hold" timeout="10s"/>
+        <reset_cue cue="this"/>
       </actions>
     </cue>
 
