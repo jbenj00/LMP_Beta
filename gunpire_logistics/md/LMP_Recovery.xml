@@ -242,6 +242,44 @@
       </actions>
     </library>
 
+    <!-- A paired-order failure may leave a verified BUY but no delivery
+         order. Only a matching completed-buy event and exact cargo can
+         promote this quarantined job to the existing stranded retry path.
+         No orders are created or cancelled by this inspection. -->
+    <library name="LMP_RecheckIncompletePair" purpose="run_actions">
+      <params><param name="ship"/></params>
+      <actions>
+        <do_if value="not $ship? or not $ship.exists or not global.$LMP_Ships? or not global.$LMP_Ships.{$ship}?">
+          <return value="false"/>
+        </do_if>
+        <set_value name="$entry" exact="global.$LMP_Ships.{$ship}"/>
+        <do_if value="$entry.$role != 'PASSIVE' or $entry.$state != 'QUARANTINED' or not $entry.$buyOrder? or $entry.$deliverOrder?">
+          <return value="false"/>
+        </do_if>
+        <do_if value="not $entry.$purchasedQty? or $entry.$purchasedQty le 0 or not $entry.$deliveredQty? or $entry.$deliveredQty != 0">
+          <return value="false"/>
+        </do_if>
+        <run_actions ref="md.LMP_Recovery.LMP_VerifyTripReservation" result="$reserved">
+          <param name="ship" value="$ship"/>
+        </run_actions>
+        <do_if value="not $reserved or not global.$LMP_Reservations.{$entry.$reservationKey}?">
+          <return value="false"/>
+        </do_if>
+        <set_value name="$key" exact="$entry.$reservationKey"/>
+        <set_value name="$reservation" exact="global.$LMP_Reservations.{$key}"/>
+        <do_if value="not $reservation.$ware? or not $ship.cargo.list? or $ship.cargo.list.count != 1">
+          <return value="false"/>
+        </do_if>
+        <do_if value="$ship.cargo.{$reservation.$ware}.count != $entry.$purchasedQty or ($ship.tradeorders? and $ship.tradeorders.count gt 0)">
+          <return value="false"/>
+        </do_if>
+        <!-- The existing retry library revalidates the original station's
+             live buy offer before issuing any delivery order. -->
+        <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'STRANDED_CARGO_RECONCILE'"/>
+        <return value="true"/>
+      </actions>
+    </library>
+
     <!-- A completed trade deal's transferredamount is the actual quantity.
          Purchased and delivered amounts must agree before settlement. -->
     <library name="LMP_VerifyActualDelivery" purpose="run_actions">
@@ -339,11 +377,20 @@
             <break/>
           </do_if>
         </do_for_each>
-        <do_if value="not $ship? or not global.$LMP_Ships.{$ship}.$deliverOrder?">
+        <do_if value="not $ship?">
           <return/>
         </do_if>
-        <!-- A cancel or partial-order failure is terminal until explicit
-             reconciliation. Late completion events cannot clear its job. -->
+        <!-- BUY-only failure: record a matching successful purchase, but
+             retain quarantine until cargo and reservation are rechecked. -->
+        <do_if value="global.$LMP_Ships.{$ship}.$state == 'QUARANTINED' and global.$LMP_Ships.{$ship}.$buyOrder? and not global.$LMP_Ships.{$ship}.$deliverOrder? and $order == global.$LMP_Ships.{$ship}.$buyOrder">
+          <set_value name="global.$LMP_Ships.{$ship}.$purchasedQty" exact="if $order.transferredamount? then $order.transferredamount else 0"/>
+          <return/>
+        </do_if>
+        <do_if value="not global.$LMP_Ships.{$ship}.$deliverOrder?">
+          <return/>
+        </do_if>
+        <!-- Any other quarantined or cancelled transaction remains blocked.
+             Late completion events cannot clear a reservation. -->
         <do_if value="global.$LMP_Ships.{$ship}.$state == 'QUARANTINED' or global.$LMP_Ships.{$ship}.$state == 'TRADE_CANCELLED_RECONCILE' or global.$LMP_Ships.{$ship}.$state == 'QUANTITY_RECONCILE'">
           <return/>
         </do_if>
