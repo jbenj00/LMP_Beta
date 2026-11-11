@@ -78,6 +78,11 @@ capacity = wing_library("LMP_GetWingCapacity")
 capacity_xml = ET.tostring(capacity, encoding="unicode")
 assert "global.$LMP_Wings.{$commander}.$state == 'LMP_WING_CONFIG_ONLY'" in capacity_xml
 assert "$role != 'WING_MEMBER'" in capacity_xml
+assert "global.$LMP_Ships.{$commander}.$role != 'WING'" in capacity_xml, "Dedicated wing commander must stay LMP-owned"
+assert "$ship.orders.count gt 0" in capacity_xml, "Busy ships cannot be allocated"
+assert "$ship.cargo.list.count gt 0" in capacity_xml, "Loaded ships cannot be treated as free"
+assert "$ship.defaultorder.id != 'Assist'" in capacity_xml, "Preserve native Assist while excluding other defaults"
+assert "$ship == $commander and $ship.defaultorder?" in capacity_xml, "Do not seize commander with a default order"
 assert "$wingCommander != $commander" in capacity_xml
 release = wing_library("LMP_UnregisterDedicatedWing")
 release_xml = ET.tostring(release, encoding="unicode")
