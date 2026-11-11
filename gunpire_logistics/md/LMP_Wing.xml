@@ -90,6 +90,47 @@
       </actions>
     </library>
 
+    <!-- Store a dedicated LMP Wing home preference without assigning
+         commander, station, GT default order or ship movement. The future
+         LMP MK3 trader must honor this setting when implemented. -->
+    <library name="LMP_SetDedicatedWingHome" purpose="run_actions">
+      <params>
+        <param name="commander"/>
+        <param name="mode"/>
+        <param name="home" default="null"/>
+      </params>
+      <actions>
+        <do_if value="not $commander? or not $commander.exists or not global.$LMP_Wings? or not global.$LMP_Wings.{$commander}?">
+          <return value="false"/>
+        </do_if>
+        <do_if value="global.$LMP_Wings.{$commander}.$state != 'LMP_WING_CONFIG_ONLY' or not global.$LMP_Ships? or not global.$LMP_Ships.{$commander}? or global.$LMP_Ships.{$commander}.$role != 'WING'">
+          <return value="false"/>
+        </do_if>
+        <do_if value="$mode == 'SECTOR'">
+          <do_if value="not $home? or not $home.exists or not $home.isclass.sector">
+            <return value="false"/>
+          </do_if>
+          <set_value name="global.$LMP_Wings.{$commander}.$homeSector" exact="$home"/>
+          <set_value name="global.$LMP_Wings.{$commander}.$homeStation" exact="null"/>
+        </do_if>
+        <do_elseif value="$mode == 'STATION'">
+          <do_if value="not $home? or not $home.exists or not $home.isclass.station">
+            <return value="false"/>
+          </do_if>
+          <set_value name="global.$LMP_Wings.{$commander}.$homeStation" exact="$home"/>
+          <set_value name="global.$LMP_Wings.{$commander}.$homeSector" exact="null"/>
+        </do_elseif>
+        <do_elseif value="$mode == 'NONE'">
+          <set_value name="global.$LMP_Wings.{$commander}.$homeStation" exact="null"/>
+          <set_value name="global.$LMP_Wings.{$commander}.$homeSector" exact="null"/>
+        </do_elseif>
+        <do_else>
+          <return value="false"/>
+        </do_else>
+        <return value="true"/>
+      </actions>
+    </library>
+
     <!-- Only count direct subordinates in the same native fleet. Do not
          inadvertently aggregate an entire nested fleet or GT trader assigned
          elsewhere. Ships with queued work/cargo retain their actual free volume. -->
