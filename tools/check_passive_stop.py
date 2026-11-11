@@ -113,7 +113,7 @@ assert not any("LMP_Reservations.LMP_Release" in e.attrib.get("ref","") for e in
 assert "LMP_AuditLoadedTrip" in load_xml
 assert "LMP_ReconcileDeliveryTail" in load_xml, "Observed delivery tails must be rechecked on load"
 assert "$pendingTails" in load_xml, "Tail completion must run after registry enumeration"
-assert load_xml.index('name="$pendingTails"') < load_xml.index('name="$pendingAudits"') or "$pendingTails" in load_xml
+assert "md.LMP_Recovery.LMP_ReconcileDeliveryTail" in load_xml
 assert "LMP_AuditLoadedTrip" in ET.tostring(tick, encoding="unicode")
 assert "STRANDED_CARGO_RECONCILE" in load_xml and "MISSING_ORDER_RECONCILE" in load_xml
 print("PASS: PASSIVE stop guards, completion and retry hooks are present")
