@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <mdscript name="LMP_Wing_Planner" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../x4_scripting_ref/schemas/md.xsd">
   <cues>
-    <!-- Pure allocation plan: no ship orders, no inventory changes, no
-         external GT calls. Its result MUST NOT be treated as a committed job.
-         demands: list of table[$ware = ware, $qty = positive integer].
-         Caller supplies validated live demand and market offers separately. -->
+    <!-- Read-only allocation. GT source: lib.gt.live.search.xml evaluates
+         waretransport.container/solid/liquid and class+universal hold volume.
+         Universal free cargo is ONE shared pool, not three independent pools.
+         No orders, reservations, or GT assignments are altered here. -->
     <library name="LMP_PlanWingCargo" purpose="run_actions">
       <params>
         <param name="commander"/>
@@ -21,11 +21,17 @@
         <set_value name="$remaining" exact="[]"/>
         <set_value name="$allocated" exact="0"/>
         <set_value name="$missing" exact="0"/>
-        <!-- Copy per-ship working capacities: the wing snapshot is read-only. -->
         <set_value name="$slots" exact="[]"/>
         <do_for_each name="$ship" in="$wing.$eligible">
-          <set_value name="$space" exact="$ship.cargo.free.container + $ship.cargo.free.universal"/>
-          <append_to_list name="$slots" exact="table[$ship = $ship, $remainingVolume = $space]"/>
+          <!-- Separate per-type space from the universal pool. Mutate only
+               these local working slots, never physical ship cargo. -->
+          <append_to_list name="$slots" exact="table[
+            $ship = $ship,
+            $container = $ship.cargo.free.container,
+            $solid = $ship.cargo.free.solid,
+            $liquid = $ship.cargo.free.liquid,
+            $universal = $ship.cargo.free.universal
+          ]"/>
         </do_for_each>
         <do_for_each name="$demand" in="$demands">
           <do_if value="not $demand.$ware? or not $demand.$qty? or $demand.$qty le 0 or $demand.$ware.volume le 0">
@@ -33,20 +39,49 @@
           </do_if>
           <set_value name="$need" exact="$demand.$qty"/>
           <set_value name="$ware" exact="$demand.$ware"/>
-          <!-- Greedy volume fill produces a deterministic per-ship work
-               proposal. It does not yet optimize supplier path or prices. -->
           <do_for_each name="$slot" in="$slots">
             <do_if value="$need le 0">
               <break/>
             </do_if>
             <set_value name="$ship" exact="$slot.$ship"/>
-            <set_value name="$fits" exact="($slot.$remainingVolume / $ware.volume)i"/>
-            <set_value name="$take" exact="[$need, $fits].min"/>
+            <!-- The ship must be able to transport this specific ware. -->
+            <do_if value="$ship.cargo.{$ware}.max le 0">
+              <continue/>
+            </do_if>
+            <set_value name="$classFree" exact="0"/>
+            <do_if value="$ware.waretransport == waretransport.container">
+              <set_value name="$classFree" exact="$slot.$container"/>
+            </do_if>
+            <do_elseif value="$ware.waretransport == waretransport.solid">
+              <set_value name="$classFree" exact="$slot.$solid"/>
+            </do_elseif>
+            <do_elseif value="$ware.waretransport == waretransport.liquid">
+              <set_value name="$classFree" exact="$slot.$liquid"/>
+            </do_elseif>
+            <do_else>
+              <continue/>
+            </do_else>
+            <set_value name="$canFit" exact="(($classFree + $slot.$universal) / $ware.volume)i"/>
+            <set_value name="$take" exact="[$need, $canFit].min"/>
             <do_if value="$take le 0">
               <continue/>
             </do_if>
-            <append_to_list name="$assignments" exact="table[$ship = $ship, $ware = $ware, $qty = $take, $volume = $take * $ware.volume]"/>
-            <set_value name="$slot.$remainingVolume" exact="$slot.$remainingVolume - ($take * $ware.volume)"/>
+            <set_value name="$volume" exact="$take * $ware.volume"/>
+            <!-- Consume dedicated ware space first. Universal space is
+                 consumed only when class-specific cargo is exhausted. -->
+            <set_value name="$dedicated" exact="[$volume, $classFree].min"/>
+            <set_value name="$shared" exact="$volume - $dedicated"/>
+            <do_if value="$ware.waretransport == waretransport.container">
+              <set_value name="$slot.$container" exact="$slot.$container - $dedicated"/>
+            </do_if>
+            <do_elseif value="$ware.waretransport == waretransport.solid">
+              <set_value name="$slot.$solid" exact="$slot.$solid - $dedicated"/>
+            </do_elseif>
+            <do_elseif value="$ware.waretransport == waretransport.liquid">
+              <set_value name="$slot.$liquid" exact="$slot.$liquid - $dedicated"/>
+            </do_elseif>
+            <set_value name="$slot.$universal" exact="$slot.$universal - $shared"/>
+            <append_to_list name="$assignments" exact="table[$ship = $ship, $ware = $ware, $qty = $take, $volume = $volume]"/>
             <set_value name="$need" exact="$need - $take"/>
             <set_value name="$allocated" exact="$allocated + $take"/>
           </do_for_each>
