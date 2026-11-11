@@ -76,7 +76,13 @@
           <!-- Commander may run MK3; subordinates with their own GT default
                orders are not eligible for a coordinated wing transport leg. -->
           <set_value name="$usable" exact="$capacity gt 0"/>
-          <do_if value="$ship != $commander and $ship.defaultorder? and $ship.defaultorder.id != 'Assist'">
+          <!-- Accept native escort/defence subordinates, including those
+               managed by Fleet Doctrine, but never count a subordinate
+               running an independent GT default order. -->
+          <do_if value="$ship != $commander and $ship.defaultorder? and global.$GT_ProtectedOrderIDs? and global.$GT_ProtectedOrderIDs.indexof.{$ship.defaultorder.id}">
+            <set_value name="$usable" exact="false"/>
+          </do_if>
+          <do_if value="$ship != $commander and $ship.defaultorder? and $ship.defaultorder.id == 'Assist' and $ship.defaultorder.$baseorder? and global.$GT_ProtectedOrderIDs? and global.$GT_ProtectedOrderIDs.indexof.{$ship.defaultorder.$baseorder.id}">
             <set_value name="$usable" exact="false"/>
           </do_if>
           <do_if value="$ship != $commander and $ship.tradeorders? and $ship.tradeorders.count gt 0">
