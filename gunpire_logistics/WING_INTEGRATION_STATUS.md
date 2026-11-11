@@ -40,6 +40,26 @@
 - Added `.github/workflows/wing-validation.yml`: Python XML parse/non-mutating checks plus strict X4 `md.xsd` validation. The workflow has been pushed and run queued/in progress; do not claim it passes until GitHub reports success.
 - **Execution remains gated.** The safe integration is a synchronous adapter inserted within GT's pre-commit AI sequence, subject to full GT source compatibility, and a consistent way for MK3 to delegate the trade without also creating its normal orders.
 
+## New executable bridge — EXPERIMENTAL (November 11)
+
+- `aiscripts/order.trade.galaxytrader.xml`: a **single XPath `<add>` patch** after GT MK3's own validated BUY order creation. Exact selector matches **one** node in the supplied Galaxy Trader 1.0.4 `order.trade.galaxytrader.xml`; source SHA-256 `b897eac4a126f02ebd23b412b6375a2499c637d995ea62fedc2607ba6d381540`. This is source inspection, **not an in-game loader test**.
+- `aiscripts/lib.lmp.wing.extend.xml`: only runs when BOTH the global gate and the commander's individual execution gate are enabled. It retains GT's original commander trade, then requests **additional same-ware purchases and deliveries for direct subordinates**, using per-member live buyer/seller offers, compatible cargo free volume, one shared wallet budget, and GT's own account selector. It skips illegal wares and ships with cargo or existing trade orders. It excludes GT-managed subordinates (including Assist baseorders).
+- For an `additionalTarget=0` request, the helper derives the maximum potential extra units from eligible wing cargo and clamps actual assignments to live buyer/seller offers and funds. This is a FIRST-PASS companion-trade extension; **GT still selected the original route/opportunity using commander-sized logic**, so this is not yet full fleet-aware MK3 scoring/search.
+- `md/LMP_Wing_Menu.xml`: SirNukes/GT-style right-click menu on an MK3 commander: register wing, inspect capacity, explicitly enable experimental companion trading, and disable it. Register alone remains **read-only**. Disabling never removes existing orders.
+- `md/LMP_Wing_Jobs.xml`: saves event-driven records of subordinate orders requested by the helper. Menu snapshot reports ships with queued trade orders, cargo remaining, and empty holds without polling. These records do **not** prove completion or profit.
+- `tools/check_gt_wing_patch.py` and GitHub Actions validate AI schema, patch structure, and safety guard. Developer can run with a path to original GT `order.trade.galaxytrader.xml` to require exactly one XPath match. A prior checker bug (XML comments counted as operations) was fixed.
+- Fleet Doctrine 2.14.1 README says Escort maps to native Defence assignment. Wing membership eligibility now admits Defence escorts and other direct subordinate assignments, but excludes independent GT default orders.
+- **Do not claim an operational formation convoy:** ships may break formation when native trade orders execute. Fleet Doctrine compatibility and native escort return behavior need in-game testing; do not force formation follow orders over active trade orders. Exact target version is GT 1.0.4, 2026-11-07.
+- **Safe activation for testing:** registration is possible; execution is OFF by default. Enable only in a disposable X4 save with GT 1.0.4 installed and Fleet Doctrine on/off comparison. If anything breaks, disable the wing before saving. This does not cancel already issued trade orders.
+
+## Remaining operational work
+1. Validate actual game's patch loading, MK3 trade continuation, subordinate order execution, trader XP and escort behavior, with fleet doctrine enabled and disabled.
+2. Add coherent convoy staging / synchronized multi-stop routing without overriding active trade orders or writing a parallel GT search engine.
+3. Convert GT's original trade search and scoring to evaluate the actual **combined eligible wing capacity** prior to selection; the current extension only expands an MK3-selected trade after commander commit.
+4. Add robust per-member completion/failure recovery, supplier exhaustion and credits handling, and reservation convergence across simultaneous orders.
+5. Support automatic subordinate enrollment and persistent F1-Pn names without fighting GT auto-naming.
+6. Validate both XML schemas and in-game behavior for all changed files; CI success alone cannot test gameplay.
+
 ## Verified source evidence
 - Galaxy Trader 1.0.4 `aiscripts/order.trade.galaxytrader.xml`: order id `GalaxyTraderMK3`; the MK3 main trade loop calculates utilization against `this.ship.cargo.capacity.all` (around line 5762). A fleet-capacity-aware **GT adapter** must be introduced at the correct planning points, not just one substitute variable.
 - Galaxy Trader 1.0.4 `md/gt_core_system.xml`: `RunCommanderGTReactivationPass` (around line 563) explicitly handles `allsubordinates`, `commander`, and `Assist` base orders. It is unsafe to overwrite them with a second AI.
