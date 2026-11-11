@@ -116,5 +116,22 @@ assert "$pendingTails" in load_xml, "Tail completion must run after registry enu
 assert "md.LMP_Recovery.LMP_ReconcileDeliveryTail" in load_xml
 assert "LMP_AuditLoadedTrip" in ET.tostring(tick, encoding="unicode")
 assert "STRANDED_CARGO_RECONCILE" in load_xml and "MISSING_ORDER_RECONCILE" in load_xml
+# Stranded shipment retry must be conservative and use original reservation.
+resume = named(recovery, "library", "LMP_ResumeStrandedDelivery")
+resume_xml = ET.tostring(resume, encoding="unicode")
+assert "STRANDED_CARGO_RECONCILE" in resume_xml
+assert "LMP_IsGTManagedShip" in resume_xml
+assert "$reservationKey" in resume_xml and "$reservation.$ware" in resume_xml
+assert "$ship.cargo.list.count != 1" in resume_xml
+assert "$ship.cargo.{$reservation.$ware}.count != $entry.$purchasedQty" in resume_xml
+assert "$entry.$deliveredQty != 0" in resume_xml
+assert "$entry.$targetOffer.ware != $reservation.$ware" in resume_xml
+assert "$entry.$targetOffer.amount lt $entry.$purchasedQty" in resume_xml
+assert len(list(resume.iter("create_trade_order"))) == 1
+assert not list(resume.iter("cancel_order"))
+assert not list(resume.iter("remove_value"))
+assert not any("LMP_Reservations.LMP_Release" in x.attrib.get("ref","") for x in resume.iter("run_actions"))
+assert resume_xml.index("<create_trade_order") < resume_xml.index("name=\"global.$LMP_Ships.{$ship}.$state\" exact=\"'DELIVERING'\""), "Mark resumed only after creating order"
+assert "LMP_ResumeStrandedDelivery" in ET.tostring(tick, encoding="unicode"), "Passive tick must retry stranded shipment"
 print("PASS: PASSIVE stop guards, completion and retry hooks are present")
 print("NOTE: structural tests do not prove X4 runtime behavior")
