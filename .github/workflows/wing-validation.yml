@@ -7,6 +7,7 @@ on:
       - 'gunpire_logistics/md/LMP_Wing*.xml'
       - 'tools/check_wing_static.py'
       - 'tools/check_passive_stop.py'
+      - 'tools/check_passive_order_setup.py'
       - 'tools/check_lmp_role_isolation.py'
       - 'tools/check_active_safety.py'
       - 'gunpire_logistics/md/LMP_Takeover.xml'
@@ -37,6 +38,8 @@ jobs:
         run: python tools/check_wing_static.py
       - name: Check exclusive LMP fleet role ownership
         run: python tools/check_lmp_role_isolation.py
+      - name: Check partially queued PASSIVE trade recovery
+        run: python tools/check_passive_order_setup.py
       - name: Check PASSIVE stop safety and retry wiring
         run: python tools/check_passive_stop.py
       - name: Check ACTIVE GT takeover safety
