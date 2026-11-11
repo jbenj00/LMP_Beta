@@ -58,6 +58,11 @@
         <do_if value="not $commander? or not $commander.exists or not global.$LMP_Wings? or not global.$LMP_Wings.{$commander}?">
           <return value="false"/>
         </do_if>
+        <!-- Existing save files may contain a stale wing registry entry.
+             Fail closed if its commander was reassigned to PASSIVE. -->
+        <do_if value="global.$LMP_Ships? and global.$LMP_Ships.{$commander}? and global.$LMP_Ships.{$commander}.$role == 'PASSIVE'">
+          <return value="false"/>
+        </do_if>
         <set_value name="$ships" exact="[]"/>
         <append_to_list name="$ships" exact="$commander"/>
         <do_if value="$commander.subordinates?">
