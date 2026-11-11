@@ -14,6 +14,8 @@
         <param name="sellStation" value="$finalSellStation"/>
         <param name="ware" value="$wareForPendingTrade"/>
         <param name="additionalTarget" value="0"/>
+        <param name="commanderAmount" value="$finalBuyAmount"/>
+        <param name="commanderUnitPrice" value="$pendingTrade.$BuyOffer.unitprice"/>
         <param name="buyInternal" value="$tradeBuyLegInternal"/>
         <param name="sellInternal" value="$tradeSellLegInternal"/>
       </run_script>
