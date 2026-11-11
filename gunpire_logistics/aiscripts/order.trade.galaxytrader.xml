@@ -7,7 +7,7 @@
        GT's original orders, account, progression, and control flow remain.
        If GT changes this exact command the patch must fail closed. -->
   <add sel="//create_trade_order[@object='this.ship'][@tradeoffer='$pendingTrade.$BuyOffer'][@amount='$finalBuyAmount']" pos="after">
-    <do_if value="global.$LMP_Wing_ExecuteEnabled? and global.$LMP_Wing_ExecuteEnabled and global.$LMP_Wings? and global.$LMP_Wings.{this.ship}?">
+    <do_if value="global.$LMP_Wing_ExecuteEnabled? and global.$LMP_Wing_ExecuteEnabled and global.$LMP_Wings? and global.$LMP_Wings.{this.ship}? and global.$LMP_Wings.{this.ship}.$executeEnabled? and global.$LMP_Wings.{this.ship}.$executeEnabled">
       <run_script name="'lib.lmp.wing.extend'" result="$lmpWingExtend">
         <param name="commander" value="this.ship"/>
         <param name="buyStation" value="$finalBuyStation"/>
