@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<aiscript name="lib.lmp.wing.busy" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../refs/x4_scripting_ref/schemas/aiscripts.xsd" version="1">
+  <params>
+    <param name="commander" default="this.ship"/>
+  </params>
+  <attention min="unknown">
+    <actions>
+      <!-- Read-only and O(direct wing members). Called only at MK3's
+           existing main-loop boundary, not per-frame. Considers only
+           members whose GUNPIRE companion trade was recorded by MD. -->
+      <do_if value="not $commander? or not @$commander.exists or not global.$LMP_Wings? or not global.$LMP_Wings.{$commander}? or not global.$LMP_WingLoads?">
+        <return value="false"/>
+      </do_if>
+      <do_if value="not $commander.subordinates?">
+        <return value="false"/>
+      </do_if>
+      <do_for_each name="$ship" in="$commander.subordinates">
+        <do_if value="not $ship? or not @$ship.exists or not global.$LMP_WingLoads.{$ship}? or global.$LMP_WingLoads.{$ship}.$commander != $commander">
+          <continue/>
+        </do_if>
+        <do_if value="$ship.tradeorders? and $ship.tradeorders.count gt 0">
+          <return value="true"/>
+        </do_if>
+        <do_if value="$ship.cargo.list? and $ship.cargo.list.count gt 0">
+          <return value="true"/>
+        </do_if>
+      </do_for_each>
+      <return value="false"/>
+    </actions>
+  </attention>
+</aiscript>
