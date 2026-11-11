@@ -168,6 +168,18 @@
         <do_if value="not $reserved">
           <return value="false"/>
         </do_if>
+        <!-- Record transaction intent BEFORE creating either order.
+             If one order is created but the next fails, save/load must
+             retain the original reservation, buyer and requested units. -->
+        <set_value name="global.$LMP_Ships.{$ship}.$job" exact="$job"/>
+        <set_value name="global.$LMP_Ships.{$ship}.$requestedQty" exact="$qty"/>
+        <set_value name="global.$LMP_Ships.{$ship}.$purchasedQty" exact="0"/>
+        <set_value name="global.$LMP_Ships.{$ship}.$deliveredQty" exact="0"/>
+        <set_value name="global.$LMP_Ships.{$ship}.$sourceOffer" exact="$offer"/>
+        <set_value name="global.$LMP_Ships.{$ship}.$targetOffer" exact="$targetOffer"/>
+        <set_value name="global.$LMP_Ships.{$ship}.$buyOrder" exact="null"/>
+        <set_value name="global.$LMP_Ships.{$ship}.$deliverOrder" exact="null"/>
+        <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'ORDER_SETUP'"/>
         <run_actions ref="md.LMP_TradeCycle.LMP_QueuePairedTrade" result="$trip">
           <param name="ship" value="$ship"/>
           <param name="sourceOffer" value="$offer"/>
@@ -175,26 +187,19 @@
           <param name="amount" value="$qty"/>
         </run_actions>
         <set_value name="$ok" exact="$trip? and $trip.$buy? and $trip.$deliver?"/>
+        <!-- The helper can return a BUY-only result on second-leg failure.
+             Persist that handle even though this trip cannot be dispatched. -->
+        <do_if value="$trip? and $trip.$buy?">
+          <set_value name="global.$LMP_Ships.{$ship}.$buyOrder" exact="$trip.$buy"/>
+        </do_if>
         <do_if value="not $ok">
-          <!-- A purchase can already be queued when second order creation fails.
-               Keep the reservation and quarantine until manual reconciliation. -->
+          <!-- Do not cancel the buy, free the reservation, or try a new job.
+               Manual/verified reconciliation is required for ambiguity. -->
           <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'QUARANTINED'"/>
-          <set_value name="global.$LMP_Ships.{$ship}.$job" exact="$job"/>
+          <set_value name="global.$LMP_Ships.{$ship}.$stopRequested" exact="true"/>
           <return value="false"/>
         </do_if>
-        <!-- Persist the intended amount before any event can complete.
-             Actual purchase/delivery quantities come from trade-deal
-             transferredamount, never from requested order amount. -->
-        <set_value name="global.$LMP_Ships.{$ship}.$requestedQty" exact="$qty"/>
-        <set_value name="global.$LMP_Ships.{$ship}.$purchasedQty" exact="0"/>
-        <set_value name="global.$LMP_Ships.{$ship}.$deliveredQty" exact="0"/>
-        <!-- Keep the live offers only while this job is unresolved.
-             Trade-cancelled events expose an offer, NOT a trade order. -->
-        <set_value name="global.$LMP_Ships.{$ship}.$sourceOffer" exact="$offer"/>
-        <set_value name="global.$LMP_Ships.{$ship}.$targetOffer" exact="$targetOffer"/>
         <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'PURCHASING'"/>
-        <set_value name="global.$LMP_Ships.{$ship}.$job" exact="$job"/>
-        <set_value name="global.$LMP_Ships.{$ship}.$buyOrder" exact="$trip.$buy"/>
         <set_value name="global.$LMP_Ships.{$ship}.$deliverOrder" exact="$trip.$deliver"/>
         <return value="true"/>
       </actions>
