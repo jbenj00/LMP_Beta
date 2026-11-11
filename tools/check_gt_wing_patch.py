@@ -25,7 +25,7 @@ insert = ops[0].find("do_if")
 assert insert is not None and "global.$LMP_Wing_ExecuteEnabled" in insert.get("value", "")
 call = insert.find("run_script")
 assert call is not None and call.get("name") == "'lib.lmp.wing.extend'"
-for param in ("commander", "buyStation", "sellStation", "ware", "additionalTarget", "buyInternal", "sellInternal"):
+for param in ("commander", "buyStation", "sellStation", "ware", "additionalTarget", "commanderAmount", "commanderUnitPrice", "buyInternal", "sellInternal"):
     assert call.xpath("param[@name=$p]", p=param), f"Missing GT parameter {param}"
 
 schema = etree.XMLSchema(etree.parse(str(schema_path)))
