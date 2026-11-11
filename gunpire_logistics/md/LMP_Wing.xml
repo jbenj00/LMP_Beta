@@ -188,7 +188,10 @@
         <do_if value="global.$LMP_Wings.{$commander}.$state != 'LMP_WING_CONFIG_ONLY' or not global.$LMP_Ships? or not global.$LMP_Ships.{$commander}? or global.$LMP_Ships.{$commander}.$role != 'WING'">
           <return value="false"/>
         </do_if>
-        <do_if value="global.$LMP_Ships.{$member}? or $member.defaultorder? or ($member.orders? and $member.orders.count gt 0) or ($member.tradeorders? and $member.tradeorders.count gt 0)">
+        <!-- Native Defence/escort subordinates commonly use an Assist
+             default. Preserve that assignment; the GT ownership check
+             below excludes Assist backed by Galaxy Trader. -->
+        <do_if value="global.$LMP_Ships.{$member}? or ($member.defaultorder? and $member.defaultorder.id != 'Assist') or ($member.orders? and $member.orders.count gt 0) or ($member.tradeorders? and $member.tradeorders.count gt 0)">
           <return value="false"/>
         </do_if>
         <do_if value="not $member.cargo.list? or $member.cargo.list.count gt 0">
@@ -229,7 +232,7 @@
         <do_if value="global.$LMP_Ships.{$member}.$job? and global.$LMP_Ships.{$member}.$job != null">
           <return value="false"/>
         </do_if>
-        <do_if value="not $member.cargo.list? or $member.cargo.list.count gt 0 or ($member.tradeorders? and $member.tradeorders.count gt 0) or ($member.orders? and $member.orders.count gt 0) or $member.defaultorder?">
+        <do_if value="not $member.cargo.list? or $member.cargo.list.count gt 0 or ($member.tradeorders? and $member.tradeorders.count gt 0) or ($member.orders? and $member.orders.count gt 0) or ($member.defaultorder? and $member.defaultorder.id != 'Assist')">
           <return value="false"/>
         </do_if>
         <remove_value name="global.$LMP_Ships.{$member}"/>
