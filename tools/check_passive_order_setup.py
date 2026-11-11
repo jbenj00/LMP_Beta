@@ -27,4 +27,30 @@ assert c.index('name="$buyOrder"') < c.index('name="$deliverOrder"'), "Buy must 
 assert 'value="table[$buy = $buyOrder]"' in c, "Failed second leg must return live buy handle"
 assert not list(dispatch.iter("cancel_order")), "Failure must not cancel queued buys"
 assert not list(dispatch.iter("remove_value")), "Failure must not release reservation"
+# A completed BUY-only order can be promoted only after actual cargo matches.
+recovery = ET.parse(base / "LMP_Recovery.xml").getroot()
+menu = ET.parse(base / "LMP_ContextMenu.xml").getroot()
+checks = [n for n in recovery.iter("library") if n.get("name") == "LMP_RecheckIncompletePair"]
+assert len(checks) == 1, "Missing conservative buy-only reconciliation"
+check = checks[0]
+chk = ET.tostring(check, encoding="unicode")
+assert "QUARANTINED" in chk and "STRANDED_CARGO_RECONCILE" in chk
+assert "$entry.$buyOrder?" in chk and "$entry.$deliverOrder?" in chk
+assert "$entry.$purchasedQty le 0" in chk and "$entry.$deliveredQty != 0" in chk
+assert "LMP_VerifyTripReservation" in chk
+assert "$ship.cargo.list.count != 1" in chk
+assert "$ship.cargo.{$reservation.$ware}.count != $entry.$purchasedQty" in chk
+assert "$ship.tradeorders.count gt 0" in chk
+for forbidden in ("create_trade_order", "cancel_order", "remove_value"):
+    assert not list(check.iter(forbidden)), "Reclassification cannot mutate ship: " + forbidden
+completed = [n for n in recovery.iter("cue") if n.get("name") == "LMP_OnTradeCompleted"]
+assert len(completed) == 1
+event_xml = ET.tostring(completed[0], encoding="unicode")
+assert "state == 'QUARANTINED'" in event_xml
+assert "not global.$LMP_Ships.{$ship}.$deliverOrder?" in event_xml
+assert "transferredamount" in event_xml
+tick = [n for n in menu.iter("cue") if n.get("name") == "LMP_PassiveTick"]
+assert len(tick) == 1
+tick_xml = ET.tostring(tick[0], encoding="unicode")
+assert tick_xml.index("LMP_RecheckIncompletePair") < tick_xml.index("LMP_ResumeStrandedDelivery"), "Recheck before attempting delivery"
 print("PASS: partially queued trade preserves buy handle and original reserved job")
