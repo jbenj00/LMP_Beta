@@ -38,9 +38,9 @@
         </do_if>
       </actions>
     </cue>
-    <!-- GT emits this logging signal AFTER the final validation and
+    <!-- GT emits this OPTIONAL logging signal AFTER the final validation and
          create_trade_order calls. It carries amounts and offers of the
-         commander's actual orders. Unlike GT_Search_Done, it is not a
+         commander's actual orders. It only fires when GT logbook entries are enabled. Unlike GT_Search_Done, it is not a
          speculative opportunity. This handler remains strictly read-only. -->
     <cue name="LMP_Wing_GtOrderMetadata" instantiate="true">
       <conditions>
@@ -72,6 +72,24 @@
         <set_value name="$offer" exact="if $data.$BuyOffer? then $data.$BuyOffer else (if $data.$SellOffer? then $data.$SellOffer else null)"/>
         <do_if value="$offer? and $offer.ware?">
           <set_value name="$record.$committedWare" exact="$offer.ware"/>
+        </do_if>
+        <!-- Optional, read-only validation. GT already owns the trade. -->
+        <set_value name="$record.$quotedUnits" exact="0"/>
+        <set_value name="$record.$quotedShips" exact="0"/>
+        <do_if value="not $record.$committedSellOnly and $data.$BuyOffer? and $data.$SellOffer?">
+          <run_actions ref="md.LMP_Wing_TradeAdapter.LMP_PreviewMK3WingTrade" result="$allocation">
+            <param name="commander" value="$wc"/>
+            <param name="trade" value="table[$BuyOffer = $data.$BuyOffer, $SellOffer = $data.$SellOffer, $Amount = $data.$Amount, $IsSellOnly = false]"/>
+          </run_actions>
+          <do_if value="$allocation">
+            <run_actions ref="md.LMP_Wing_OfferValidation.LMP_ValidateWingQuote" result="$quote">
+              <param name="plan" value="$allocation"/>
+            </run_actions>
+            <do_if value="$quote">
+              <set_value name="$record.$quotedUnits" exact="$quote.$allowedUnits"/>
+              <set_value name="$record.$quotedShips" exact="$quote.$assignments.count"/>
+            </do_if>
+          </do_if>
         </do_if>
         <debug_text text="'[GUNPIRE][WING][GT-COMMITTED] wc=' + $wc.idcode + ' amount=' + $record.$committedAmount + ' sellOnly=' + $record.$committedSellOnly + ' profitRaw=' + $record.$committedProfitRaw + ' (observer only)'" chance="100"/>
       </actions>
