@@ -51,11 +51,19 @@ assert any(e.attrib.get("ref") == "md.LMP_Recovery.LMP_ReconcileDeliveryTail" fo
 cancel = named(recovery, "cue", "LMP_OnTradeCancelled")
 cancel_xml = ET.tostring(cancel, encoding="unicode")
 load_xml = ET.tostring(named(recovery, "cue", "LMP_Recovery_OnLoad"), encoding="unicode")
-assert "$buyOrder" in cancel_xml and "$deliverOrder" in cancel_xml, "Cancelled order must match tracked LMP order"
+assert 'event.param2' not in cancel_xml, "X4 trade-cancelled has no order in param2"
+assert 'event.param' in cancel_xml, "Trade cancellation must read documented offer event.param"
+assert "$sourceOffer" in cancel_xml and "$targetOffer" in cancel_xml, "Only tracked offers may quarantine an LMP job"
+assert "global.$LMP_Ships.keys" in cancel_xml, "Shared offer cancellations must check all enrolled ships"
+dispatcher = read("LMP_Dispatcher.xml")
+dispatch_xml = ET.tostring(named(dispatcher, "library", "LMP_DispatchOne"), encoding="unicode")
+assert "$sourceOffer" in dispatch_xml and "$targetOffer" in dispatch_xml, "Successful trip must record offer handles"
 assert "TRADE_CANCELLED_RECONCILE" in cancel_xml, "Cancel must quarantine ship"
 assert "$stopRequested" in cancel_xml, "Cancel must block further dispatch"
 assert "TRADE_CANCELLED_RECONCILE" in load_xml, "Save-load must preserve quarantined state"
 assert "TRADE_CANCELLED_RECONCILE" in ET.tostring(on_trade, encoding="unicode"), "Late trade completion must not erase cancellation"
+assert ET.tostring(tail, encoding="unicode").count("$sourceOffer") > 0, "Tail must clear stale offer correlation"
+assert ET.tostring(on_trade, encoding="unicode").count("$sourceOffer") > 0, "Completion must clear stale offer correlation"
 assert not list(cancel.iter("remove_value")), "No reservations/registry may be released on cancel"
 assert not list(cancel.iter("cancel_order")), "Cancellation recovery must not mutate ship order queue"
 reserve = named(reservations, "library", "LMP_Reserve")
