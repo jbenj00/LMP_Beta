@@ -41,6 +41,29 @@
       </actions>
     </cue>
 
+    <!-- GT pattern: AIScript signals the galaxy; MD responds without polling
+         ships that are not explicitly running the LMP_Passive default order. -->
+    <cue name="LMP_PassiveTick" instantiate="true">
+      <conditions>
+        <event_object_signalled object="player.galaxy" param="'LMP_Passive_Tick'"/>
+      </conditions>
+      <actions>
+        <set_value name="$ship" exact="@event.param2"/>
+        <do_if value="not $ship? or not $ship.exists or not $ship.defaultorder? or $ship.defaultorder.id != 'LMP_Passive'">
+          <return/>
+        </do_if>
+        <do_if value="not global.$LMP_Ships? or not global.$LMP_Ships.{$ship}? or global.$LMP_Ships.{$ship}.$role != 'PASSIVE'">
+          <return/>
+        </do_if>
+        <do_if value="global.$LMP_Ships.{$ship}.$stopRequested? and global.$LMP_Ships.{$ship}.$stopRequested">
+          <return/>
+        </do_if>
+        <run_actions ref="md.LMP_Dispatcher.LMP_DispatchOne" result="$started">
+          <param name="ship" value="$ship"/>
+        </run_actions>
+      </actions>
+    </cue>
+
     <cue name="LMP_StartPassiveAction" instantiate="true" namespace="this">
       <conditions><event_cue_signalled/></conditions>
       <actions>
