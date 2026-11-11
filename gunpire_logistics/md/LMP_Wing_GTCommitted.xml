@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mdscript name="LMP_Wing_GTCommitted" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../x4_scripting_ref/schemas/md.xsd">
+  <cues>
+    <!-- Source: GT 1.0.4 order.trade.galaxytrader.xml, immediately after
+         create_trade_order: GT_Ship_State_Update with UpdateType =
+         Trade_Order_Created. This is a post-order event, NOT a search result.
+         Never alter the commander's trade order list or GT globals. -->
+    <cue name="LMP_Wing_GtOrdersCreated" instantiate="true">
+      <conditions>
+        <event_object_signalled object="player.galaxy" param="'GT_Ship_State_Update'"/>
+      </conditions>
+      <actions>
+        <set_value name="$data" exact="event.param2"/>
+        <do_if value="not $data? or not $data.$Ship? or not $data.$UpdateType? or $data.$UpdateType != 'Trade_Order_Created'">
+          <return/>
+        </do_if>
+        <set_value name="$wc" exact="$data.$Ship"/>
+        <do_if value="not $wc.exists or not global.$LMP_Wings? or not global.$LMP_Wings.{$wc}?">
+          <return/>
+        </do_if>
+        <do_if value="not $wc.defaultorder? or $wc.defaultorder.id != 'GalaxyTraderMK3'">
+          <return/>
+        </do_if>
+        <set_value name="$record" exact="global.$LMP_Wings.{$wc}"/>
+        <!-- Store only a simple, persistent scalar snapshot. GT's live offers
+             can become stale and MUST be checked again for any later execution. -->
+        <set_value name="$record.$lastOrderAge" exact="player.age"/>
+        <set_value name="$record.$commanderOrderCount" exact="if $data.$TradeOrderCount? then $data.$TradeOrderCount else 0"/>
+        <set_value name="$record.$state" exact="'GT_ORDER_CREATED_OBSERVE_ONLY'"/>
+        <run_actions ref="md.LMP_Wing.LMP_GetWingCapacity" result="$wing">
+          <param name="commander" value="$wc"/>
+        </run_actions>
+        <do_if value="$wing">
+          <set_value name="$record.$wingShipCount" exact="$wing.$ships.count"/>
+          <set_value name="$record.$wingCapacity" exact="$wing.$capacity"/>
+          <set_value name="$record.$wingFreeVolume" exact="$wing.$free"/>
+          <debug_text text="'[GUNPIRE][WING][GT-ORDER] wc=' + $wc.idcode + ' orderCount=' + $record.$commanderOrderCount + ' wingShips=' + $record.$wingShipCount + ' wingVolume=' + $record.$wingCapacity" chance="100"/>
+        </do_if>
+      </actions>
+    </cue>
+    <!-- GT emits this logging signal AFTER the final validation and
+         create_trade_order calls. It carries amounts and offers of the
+         commander's actual orders. Unlike GT_Search_Done, it is not a
+         speculative opportunity. This handler remains strictly read-only. -->
+    <cue name="LMP_Wing_GtOrderMetadata" instantiate="true">
+      <conditions>
+        <event_object_signalled object="player.galaxy" param="'GT_TradeLogging_LogTradeOrder'"/>
+      </conditions>
+      <actions>
+        <set_value name="$data" exact="event.param2"/>
+        <do_if value="not $data? or not $data.$Ship? or not $data.$Amount? or $data.$Amount le 0">
+          <return/>
+        </do_if>
+        <set_value name="$wc" exact="$data.$Ship"/>
+        <do_if value="not $wc.exists or not global.$LMP_Wings? or not global.$LMP_Wings.{$wc}?">
+          <return/>
+        </do_if>
+        <do_if value="not $wc.defaultorder? or $wc.defaultorder.id != 'GalaxyTraderMK3'">
+          <return/>
+        </do_if>
+        <set_value name="$record" exact="global.$LMP_Wings.{$wc}"/>
+        <set_value name="$record.$committedAge" exact="player.age"/>
+        <set_value name="$record.$committedAmount" exact="$data.$Amount"/>
+        <set_value name="$record.$committedSellOnly" exact="$data.$IsSellOnly? and $data.$IsSellOnly"/>
+        <set_value name="$record.$committedProfitRaw" exact="if $data.$Profit? then $data.$Profit else 0"/>
+        <set_value name="$record.$committedBuyPriceRaw" exact="if $data.$BuyPriceRaw? then $data.$BuyPriceRaw else 0"/>
+        <set_value name="$record.$committedSellPriceRaw" exact="if $data.$SellPriceRaw? then $data.$SellPriceRaw else 0"/>
+        <set_value name="$record.$state" exact="'GT_COMMITTED_OBSERVE_ONLY'"/>
+        <!-- Offers are referenced only for instantaneous read-only preview.
+             Do NOT retain a promise to fill them later: they may become stale,
+             and GT already placed the commander's actual trade orders. -->
+        <set_value name="$offer" exact="if $data.$BuyOffer? then $data.$BuyOffer else (if $data.$SellOffer? then $data.$SellOffer else null)"/>
+        <do_if value="$offer? and $offer.ware?">
+          <set_value name="$record.$committedWare" exact="$offer.ware"/>
+        </do_if>
+        <debug_text text="'[GUNPIRE][WING][GT-COMMITTED] wc=' + $wc.idcode + ' amount=' + $record.$committedAmount + ' sellOnly=' + $record.$committedSellOnly + ' profitRaw=' + $record.$committedProfitRaw + ' (observer only)'" chance="100"/>
+      </actions>
+    </cue>
+  </cues>
+</mdscript>
