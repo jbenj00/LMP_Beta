@@ -18,7 +18,9 @@
               <!-- A previously observed delivery-completed event is the
                    only state safe for tail reconciliation after load.
                    Never infer successful delivery from an empty hold alone. -->
-              <do_if value="global.$LMP_Ships.{$ship}.$state != 'DELIVERY_RECONCILE'">
+              <!-- Quarantined/cancelled trades require explicit investigation.
+                   Do not overwrite their durable failure state on load. -->
+              <do_if value="global.$LMP_Ships.{$ship}.$state != 'DELIVERY_RECONCILE' and global.$LMP_Ships.{$ship}.$state != 'QUARANTINED' and global.$LMP_Ships.{$ship}.$state != 'TRADE_CANCELLED_RECONCILE'">
                 <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'RECONCILE_ON_LOAD'"/>
               </do_if>
             </do_elseif>
@@ -78,6 +80,11 @@
         <do_if value="not global.$LMP_Ships? or not global.$LMP_Ships.{$ship}? or not global.$LMP_Ships.{$ship}.$deliverOrder?">
           <return/>
         </do_if>
+        <!-- A cancel or partial-order failure is terminal until explicit
+             reconciliation. Late completion events cannot clear its job. -->
+        <do_if value="global.$LMP_Ships.{$ship}.$state == 'QUARANTINED' or global.$LMP_Ships.{$ship}.$state == 'TRADE_CANCELLED_RECONCILE'">
+          <return/>
+        </do_if>
         <!-- The purchase event NEVER releases the reservation. -->
         <do_if value="$order == global.$LMP_Ships.{$ship}.$buyOrder">
           <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'DELIVERING'"/>
@@ -117,11 +124,26 @@
     <cue name="LMP_OnTradeCancelled" instantiate="true">
       <conditions><event_trade_cancelled space="player.galaxy"/></conditions>
       <actions>
-        <!-- Cancel events do not identify a reliable paired-order completion.
-             Preserve jobs/reservations for recovery; no automatic release. -->
+        <!-- Only act on an order we actually own. Unrelated vanilla and
+             modded trade cancellations must never alter LMP ship state. -->
+        <do_if value="not event.param2? or not event.param2.object?">
+          <return/>
+        </do_if>
+        <set_value name="$order" exact="event.param2"/>
+        <set_value name="$ship" exact="$order.object"/>
+        <do_if value="not global.$LMP_Ships? or not global.$LMP_Ships.{$ship}?">
+          <return/>
+        </do_if>
+        <do_if value="$order != global.$LMP_Ships.{$ship}.$buyOrder and $order != global.$LMP_Ships.{$ship}.$deliverOrder">
+          <return/>
+        </do_if>
+        <!-- Preserve cargo, queued work and reservations. Never turn an
+             aborted buy or failed delivery into a successful trip. -->
+        <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'TRADE_CANCELLED_RECONCILE'"/>
+        <set_value name="global.$LMP_Ships.{$ship}.$stopRequested" exact="true"/>
         <run_actions ref="md.GUNPIRE_Core.GUNPIRE_Log">
           <param name="component" value="'RECOVERY'"/>
-          <param name="message" value="'Trade cancelled: manual job reconciliation required'"/>
+          <param name="message" value="'GUNPIRE trade cancelled for ' + $ship.idcode + '; ship quarantined pending reconciliation'"/>
         </run_actions>
       </actions>
     </cue>
