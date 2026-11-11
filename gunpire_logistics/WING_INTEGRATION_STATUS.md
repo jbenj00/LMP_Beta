@@ -22,10 +22,17 @@
 - GT 1.0.4 `aiscripts/order.trade.galaxytrader.xml` roughly lines **6300-6403** revalidates live sell/buy offers, trade blacklists and route legality immediately before trade order creation.
 - Roughly lines **6552-6570**, GT calls `create_trade_order` for sell and buy legs (using `immediate=\"true\"`, `internal=\"...\"`). **GT owns these orders**, not GUNPIRE.
 - Around **6697**, GT emits `GT_Ship_State_Update` with `$UpdateType = 'Trade_Order_Created'` and `$TradeOrderCount`; this is a reliable *source-level* post-order observation point.
-- Around **6918**, GT emits `GT_TradeLogging_LogTradeOrder`, carrying final committed `$Amount`, `$BuyOffer`, `$SellOffer`, prices and `$IsSellOnly`. This is later than order creation and much stronger than `GT_Search_Done`.
+- Around **6918**, **when GT logbook entries are enabled**, GT emits `GT_TradeLogging_LogTradeOrder`, carrying final committed `$Amount`, `$BuyOffer`, `$SellOffer`, prices and `$IsSellOnly`. This is later than order creation and much stronger than `GT_Search_Done`.
 - `md/LMP_Wing_GTCommitted.xml` **now listens for both signals** and records the commander's committed trade metadata in the wing registry, without changing trade orders or modifying GT progress. This is still observation, not a GT interception hook.
 - `md/LMP_Wing_GTObserver.xml` was hardened to persist only scalar preview statistics; it no longer saves live offer references in its preview.
 - **Critical**: Neither post-order event permits us to increase the commander's purchase amount retroactively. A real fleet-wide MK3 requires a *pre-commit validated handoff* into wing-level execution, with GT agreeing not to create duplicate commander orders. Read-only post-commit observers are not a substitute for that.
+
+## Current development pass
+- Fixed `LMP_Wing_Planner.xml` to track container, solid, liquid, and **one shared universal free-space pool** per ship across multiple wares. Prevents earlier overcommit when a universal hold was counted independently for different transport classes.
+- Added `md/LMP_Wing_OfferValidation.xml`: read-only quote revalidation against each subordinate's live `find_sell_offer` and `find_buy_offer` (using that member as `tradepartner`). These quotes **cannot be executed blindly**: shared stock across multiple offers can be overbooked and GT credit/route/price checks remain authoritative.
+- GT's `GT_TradeLogging_LogTradeOrder` is **conditional on GT logbook entries being enabled** (verified in `order.trade.galaxytrader.xml` near line 6855). The unconditional `GT_Ship_State_Update` event remains the primary post-order marker; only the optional logging event contains offer and price details.
+- `md/LMP_Wing_GTCommitted.xml` now computes a per-subordinate quote preview from the optional GT committed trade metadata and stores scalar units/ship counts. The quoted additional capacity excludes the commander's already-committed hold; **no subordinate orders are created**.
+- Added `tools/check_wing_static.py`: parse/consistency/non-mutating-action checks for wing modules. Does not substitute for X4 9.00 schema validation or runtime tests.
 
 ## Verified source evidence
 - Galaxy Trader 1.0.4 `aiscripts/order.trade.galaxytrader.xml`: order id `GalaxyTraderMK3`; the MK3 main trade loop calculates utilization against `this.ship.cargo.capacity.all` (around line 5762). A fleet-capacity-aware **GT adapter** must be introduced at the correct planning points, not just one substitute variable.
