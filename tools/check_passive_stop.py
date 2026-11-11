@@ -81,6 +81,8 @@ assert "$requestedQty" in dispatch_xml and "$purchasedQty" in dispatch_xml and "
 assert "$entry.$purchasedQty != $entry.$deliveredQty" in verify_xml
 assert "$entry.$deliveredQty gt $entry.$requestedQty" in verify_xml
 assert "transferredamount" in on_trade_xml
+assert "event.param2" in on_trade_xml and "$order == global.$LMP_Ships.{$candidate}.$buyOrder" in on_trade_xml
+assert "$order.object" not in on_trade_xml, "Trade deal is not guaranteed to expose owning ship via .object"
 assert "$purchasedQty" in on_trade_xml and "$deliveredQty" in on_trade_xml
 assert "LMP_VerifyActualDelivery" in on_trade_xml and "LMP_VerifyActualDelivery" in tail_xml
 assert "QUANTITY_RECONCILE" in on_trade_xml and "QUANTITY_RECONCILE" in tail_xml
