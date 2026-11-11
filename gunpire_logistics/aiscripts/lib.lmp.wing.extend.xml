@@ -22,7 +22,7 @@
       <do_if value="not $commander? or not @$commander.exists or not $commander.isplayerowned or not $commander.defaultorder? or $commander.defaultorder.id != 'GalaxyTraderMK3'">
         <return value="table[$Assigned = 0, $Ships = 0, $Reason = 'commander']"/>
       </do_if>
-      <do_if value="not $buyStation? or not @$buyStation.exists or not $sellStation? or not @$sellStation.exists or not $ware? or $ware.illegal gt 0 or $additionalTarget le 0">
+      <do_if value="not $buyStation? or not @$buyStation.exists or not $sellStation? or not @$sellStation.exists or not $ware? or $ware.illegal gt 0 or $additionalTarget lt 0">
         <return value="table[$Assigned = 0, $Ships = 0, $Reason = 'offer']"/>
       </do_if>
       <do_if value="not $commander.subordinates?">
@@ -32,6 +32,15 @@
            from a search result. This executes only after the commander
            created both of its own orders. -->
       <set_value name="$remaining" exact="$additionalTarget"/>
+      <!-- Zero target = size the extra trade against the actual available
+           wing holds, instead of scaling by the commander's single hold. -->
+      <do_if value="$remaining == 0">
+        <do_for_each name="$s" in="$commander.subordinates">
+          <do_if value="$s? and @$s.exists and $s.isplayerowned and $s.commander? and $s.commander == $commander and $s.cargo.{$ware}.max gt 0 and (not $s.tradeorders? or $s.tradeorders.count == 0)">
+            <set_value name="$remaining" exact="$remaining + (($s.cargo.free.all / $ware.volume)i)"/>
+          </do_if>
+        </do_for_each>
+      </do_if>
       <!-- Keep one shared wallet budget: do not offer each member the
            same full account balance after GT queues its own order. -->
       <run_script name="'lib.gt.pay.account'" result="$wingAccount">
