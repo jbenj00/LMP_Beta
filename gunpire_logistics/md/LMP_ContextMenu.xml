@@ -59,6 +59,11 @@
         <do_if value="not global.$LMP_Ships? or not global.$LMP_Ships.{$ship}? or global.$LMP_Ships.{$ship}.$role != 'PASSIVE'">
           <return/>
         </do_if>
+        <!-- Recheck only an in-flight save recovery, on the already
+             scheduled passive ship tick; no new fleet-wide polling. -->
+        <run_actions ref="md.LMP_Recovery.LMP_AuditLoadedTrip" result="$audited">
+          <param name="ship" value="$ship"/>
+        </run_actions>
         <!-- If an earlier delivery-completed event arrived before
              the order queue went empty, reconcile on this existing tick.
              No extra fleet polling or assumed successful deliveries. -->
