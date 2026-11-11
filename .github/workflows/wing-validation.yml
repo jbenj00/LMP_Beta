@@ -7,6 +7,8 @@ on:
       - 'gunpire_logistics/md/LMP_Wing*.xml'
       - 'tools/check_wing_static.py'
       - 'tools/check_passive_stop.py'
+      - 'tools/check_active_safety.py'
+      - 'gunpire_logistics/md/LMP_Takeover.xml'
       - 'gunpire_logistics/md/LMP_ShipRegistry.xml'
       - 'gunpire_logistics/md/LMP_ContextMenu.xml'
       - 'gunpire_logistics/md/LMP_Recovery.xml'
@@ -34,6 +36,8 @@ jobs:
         run: python tools/check_wing_static.py
       - name: Check PASSIVE stop safety and retry wiring
         run: python tools/check_passive_stop.py
+      - name: Check ACTIVE GT takeover safety
+        run: python tools/check_active_safety.py
       - name: Check availability of the X4 MD schema
         run: test -s refs/x4_scripting_ref/schemas/md.xsd
       - name: Validate wing MD against X4 schema
@@ -50,6 +54,7 @@ jobs:
               'LMP_ShipRegistry.xml', 'LMP_ContextMenu.xml',
               'LMP_Recovery.xml', 'LMP_TradeCycle.xml',
               'LMP_Reservations.xml',
+              'LMP_Takeover.xml',
           )]
           for filename in files:
               doc = etree.parse(str(filename))
