@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mdscript name="LMP_Wing_OfferValidation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../x4_scripting_ref/schemas/md.xsd">
+  <cues>
+    <!-- Read-only per-member validation of a GT-sourced trade proposal.
+         GT MK3 verifies offers with find_sell_offer and find_buy_offer
+         using tradepartner=this.ship. A wing must recheck EACH member's
+         legal offers instead of reusing the commander's trade permissions.
+         This is only a quote; credit, price, route, docking and reservation
+         rules must be checked again by the eventual transaction executor. -->
+    <library name="LMP_ValidateWingQuote" purpose="run_actions">
+      <params>
+        <param name="plan"/>
+      </params>
+      <actions>
+        <do_if value="not $plan? or not $plan.$assignments? or not $plan.$trade?">
+          <return value="false"/>
+        </do_if>
+        <set_value name="$trade" exact="$plan.$trade"/>
+        <do_if value="not $trade.$BuyOffer? or not $trade.$SellOffer? or not $trade.$BuyOffer.exists or not $trade.$SellOffer.exists">
+          <return value="false"/>
+        </do_if>
+        <set_value name="$seller" exact="$trade.$BuyOffer.owner"/>
+        <set_value name="$buyer" exact="$trade.$SellOffer.owner"/>
+        <do_if value="not $seller? or not $buyer?">
+          <return value="false"/>
+        </do_if>
+        <set_value name="$result" exact="[]"/>
+        <set_value name="$allowed" exact="0"/>
+        <set_value name="$rejected" exact="0"/>
+        <!-- All wing ships share one physical seller stock and one buyer
+             demand budget. A per-ship quote is not additional stock. -->
+        <set_value name="$remainingSource" exact="0"/>
+        <set_value name="$remainingTarget" exact="0"/>
+        <set_value name="$budgetSet" exact="false"/>
+        <do_for_each name="$a" in="$plan.$assignments">
+          <set_value name="$ship" exact="$a.$ship"/>
+          <set_value name="$ware" exact="$a.$ware"/>
+          <set_value name="$qty" exact="$a.$amount"/>
+          <do_if value="not $ship? or not $ship.exists or not $ware? or $qty le 0">
+            <continue/>
+          </do_if>
+          <!-- These are the GT pre-commit validation API forms, with the
+               proposed wing member as tradepartner, NOT the MK3 commander. -->
+          <find_sell_offer result="$buy" seller="$seller" wares="$ware" tradepartner="$ship"/>
+          <find_buy_offer result="$sell" buyer="$buyer" wares="$ware" tradepartner="$ship"/>
+          <set_value name="$valid" exact="$buy? and $sell? and $buy.available and $sell.available and $buy.ware == $ware and $sell.ware == $ware"/>
+          <do_if value="$valid">
+            <set_value name="$sourceQty" exact="$buy.offeramount.{$ship}"/>
+            <set_value name="$sinkQty" exact="$sell.offeramount.{$ship}"/>
+            <do_if value="not $budgetSet">
+              <set_value name="$remainingSource" exact="$sourceQty"/>
+              <set_value name="$remainingTarget" exact="$sinkQty"/>
+              <set_value name="$budgetSet" exact="true"/>
+            </do_if>
+            <set_value name="$qty" exact="[$qty, $sourceQty, $sinkQty, $remainingSource, $remainingTarget].min"/>
+            <set_value name="$valid" exact="$qty gt 0"/>
+          </do_if>
+          <do_if value="$valid">
+            <append_to_list name="$result" exact="table[$ship = $ship, $ware = $ware, $amount = $qty, $buyOffer = $buy, $sellOffer = $sell]"/>
+            <set_value name="$allowed" exact="$allowed + $qty"/>
+            <set_value name="$remainingSource" exact="$remainingSource - $qty"/>
+            <set_value name="$remainingTarget" exact="$remainingTarget - $qty"/>
+          </do_if>
+          <do_else>
+            <set_value name="$rejected" exact="$rejected + 1"/>
+          </do_else>
+        </do_for_each>
+        <!-- NEVER issue these orders from this library. Availability is
+             ephemeral and independent quotes may compete for the same stock. -->
+        <return value="table[$assignments = $result, $allowedUnits = $allowed, $rejectedShips = $rejected, $quoteOnly = true]"/>
+      </actions>
+    </library>
+  </cues>
+</mdscript>

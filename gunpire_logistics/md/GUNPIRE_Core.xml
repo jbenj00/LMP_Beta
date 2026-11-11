@@ -50,8 +50,9 @@
       </actions>
     </library>
 
-    <!-- Mirrors GT 1.0.4 MK4 default-order and Assist/$baseorder checks.
-         Source: aiscripts/order.trade.galaxytradermk4.xml near line 479. -->
+    <!-- GT 1.0.4 md/gt_core_system.xml ProtectedOrderIDs (lines 90,133),
+         including GT MK1/MK2/MK3/MK4, Miner, Explorer, and Assist/baseorder.
+         Do not steal ANY Galaxy Trader default order. -->
     <library name="GUNPIRE_IsGTManagedShip" purpose="run_actions">
       <params>
         <param name="ship"/>
@@ -61,10 +62,11 @@
           <return value="false"/>
         </do_if>
         <set_value name="$order" exact="$ship.defaultorder"/>
-        <do_if value="$order.id == 'GalaxyTraderMK3' or $order.id == 'GalaxyTraderMK4Supply'">
+        <set_value name="$gtIds" exact="['GalaxyTraderMK3', 'GalaxyTraderMK4Supply', 'GalaxyTraderMK4Supply2', 'GalaxyTraderMK2', 'GalaxyTraderMK1', 'GalaxyMiner', 'GalaxyExplorer']"/>
+        <do_if value="$gtIds.indexof.{$order.id}">
           <return value="true"/>
         </do_if>
-        <do_if value="$order.id == 'Assist' and $order.$baseorder? and ($order.$baseorder.id == 'GalaxyTraderMK3' or $order.$baseorder.id == 'GalaxyTraderMK4Supply')">
+        <do_if value="$order.id == 'Assist' and $order.$baseorder? and $gtIds.indexof.{$order.$baseorder.id}">
           <return value="true"/>
         </do_if>
         <return value="false"/>

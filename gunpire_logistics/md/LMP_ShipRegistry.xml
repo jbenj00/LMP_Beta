@@ -9,7 +9,7 @@
         <do_if value="not global.$LMP_Ships?">
           <set_value name="global.$LMP_Ships" exact="table[]"/>
         </do_if>
-        <run_actions ref="GUNPIRE_Log">
+        <run_actions ref="md.GUNPIRE_Core.GUNPIRE_Log">
           <param name="component" value="'FLEET'"/>
           <param name="message" value="'Ship registry ready. Count=' + global.$LMP_Ships.keys.count"/>
         </run_actions>
@@ -23,16 +23,38 @@
       </params>
       <actions>
         <do_if value="not $ship? or not $ship.exists or $ship.owner != faction.player">
-          <run_actions ref="GUNPIRE_Log">
+          <run_actions ref="md.GUNPIRE_Core.GUNPIRE_Log">
             <param name="component" value="'FLEET'"/>
             <param name="message" value="'Enrollment rejected: invalid or non-player ship'"/>
           </run_actions>
           <return value="false"/>
         </do_if>
+        <!-- ACTIVE GT ship borrowing was retired by project decision.
+             Reject new legacy ACTIVE registrations without touching
+             previously saved entries or another mod's ship behavior. -->
+        <do_if value="$role == 'ACTIVE'">
+          <return value="false"/>
+        </do_if>
+        <!-- PASSIVE belongs to the construction fleet only. A registered
+             LMP MK3 wing commander or direct wing member may not be enrolled
+             into PASSIVE, even when idle and cargo-empty. No reassignment. -->
+        <do_if value="$role == 'PASSIVE' and global.$LMP_Wings?">
+          <do_if value="global.$LMP_Wings.{$ship}?">
+            <return value="false"/>
+          </do_if>
+          <do_if value="$ship.commander? and global.$LMP_Wings.{$ship.commander}?">
+            <return value="false"/>
+          </do_if>
+        </do_if>
+        <!-- Existing role allocations are immutable through enrollment.
+             Changing roles requires a clean release before re-enrollment. -->
+        <do_if value="global.$LMP_Ships? and global.$LMP_Ships.{$ship}? and global.$LMP_Ships.{$ship}.$role != $role">
+          <return value="false"/>
+        </do_if>
         <!-- Feature gate: max controlled ships -->
-        <run_actions ref="GUNPIRE_MaxControlledShips" result="$max"/>
+        <run_actions ref="md.GUNPIRE_Config.GUNPIRE_MaxControlledShips" result="$max"/>
         <do_if value="global.$LMP_Ships.keys.count ge $max and not global.$LMP_Ships.{$ship}?">
-          <run_actions ref="GUNPIRE_Log">
+          <run_actions ref="md.GUNPIRE_Core.GUNPIRE_Log">
             <param name="component" value="'FLEET'"/>
             <param name="message" value="'Enrollment rejected: profile ship limit reached'"/>
           </run_actions>
@@ -45,9 +67,125 @@
           <set_value name="global.$LMP_Ships.{$ship}.$snapshot" exact="null"/>
           <set_value name="global.$LMP_Ships.{$ship}.$job" exact="null"/>
         </do_if>
-        <run_actions ref="GUNPIRE_Log">
+        <run_actions ref="md.GUNPIRE_Core.GUNPIRE_Log">
           <param name="component" value="'FLEET'"/>
           <param name="message" value="'Enrolled ' + $ship.idcode + ' role=' + $role"/>
+        </run_actions>
+        <return value="true"/>
+      </actions>
+    </library>
+
+    <!-- Explicit integration entrypoint. A future UI or PASSIVE AI behavior
+         can call this directly; it does not touch GT trader orders. -->
+    <library name="LMP_StartPassiveShip" purpose="run_actions">
+      <params><param name="ship"/></params>
+      <actions>
+        <do_if value="not $ship? or not $ship.exists or $ship.owner != faction.player">
+          <return value="false"/>
+        </do_if>
+        <!-- Cross-registry gate before creating the PASSIVE default order;
+             failed menu actions cannot steal a registered wing member. -->
+        <do_if value="global.$LMP_Wings? and (global.$LMP_Wings.{$ship}? or ($ship.commander? and global.$LMP_Wings.{$ship.commander}?))">
+          <return value="false"/>
+        </do_if>
+        <!-- Explicit Stop owns this ship until its existing trip is
+             reconciled. Do not turn Stop into a silent restart. -->
+        <do_if value="global.$LMP_Ships? and global.$LMP_Ships.{$ship}? and global.$LMP_Ships.{$ship}.$stopRequested? and global.$LMP_Ships.{$ship}.$stopRequested">
+          <return value="false"/>
+        </do_if>
+        <run_actions ref="md.GUNPIRE_Core.GUNPIRE_IsGTManagedShip" result="$gt">
+          <param name="ship" value="$ship"/>
+        </run_actions>
+        <do_if value="$gt">
+          <return value="false"/>
+        </do_if>
+        <!-- Refuse conversion of another default order until its snapshot
+             and restoration are verified. Never overwrite ship behavior. -->
+        <do_if value="$ship.defaultorder? and $ship.defaultorder.id != 'LMP_Passive'">
+          <return value="false"/>
+        </do_if>
+        <!-- Do not change a ship that has cargo or a queued job. -->
+        <run_actions ref="md.LMP_TradeCycle.LMP_TripIsFullyFinished" result="$idle">
+          <param name="ship" value="$ship"/>
+        </run_actions>
+        <do_if value="not $idle">
+          <return value="false"/>
+        </do_if>
+        <run_actions ref="md.LMP_ShipRegistry.LMP_EnrollShip" result="$enrolled">
+          <param name="ship" value="$ship"/>
+          <param name="role" value="'PASSIVE'"/>
+        </run_actions>
+        <do_if value="not $enrolled or global.$LMP_Ships.{$ship}.$role != 'PASSIVE'">
+          <return value="false"/>
+        </do_if>
+        <!-- Explicit player action assigns the permanent PASSIVE default order.
+             ACTIVE GT traders never reach this path. -->
+        <do_if value="not $ship.defaultorder? or $ship.defaultorder.id != 'LMP_Passive'">
+          <create_order id="'LMP_Passive'" object="$ship" default="true"/>
+        </do_if>
+        <set_value name="global.$LMP_Ships.{$ship}.$stopRequested" exact="false"/>
+        <run_actions ref="md.LMP_Dispatcher.LMP_DispatchOne" result="$ok"><param name="ship" value="$ship"/></run_actions>
+        <!-- Enrollment succeeds even when no buy offers are available yet;
+             the permanent passive order retries from the next idle tick. -->
+        <return value="true"/>
+      </actions>
+    </library>
+
+    <!-- Finalize a requested PASSIVE stop ONLY at a clean transaction
+         boundary. X4/GT source verifies cancel_order on a default order.
+         Never cancel queued trade orders, never clear cargo and never
+         touch any order other than our own LMP_Passive default. -->
+    <library name="LMP_FinalizePassiveStop" purpose="run_actions">
+      <params><param name="ship"/></params>
+      <actions>
+        <do_if value="not $ship? or not $ship.exists or not global.$LMP_Ships? or not global.$LMP_Ships.{$ship}?">
+          <return value="false"/>
+        </do_if>
+        <do_if value="global.$LMP_Ships.{$ship}.$role != 'PASSIVE' or not global.$LMP_Ships.{$ship}.$stopRequested? or not global.$LMP_Ships.{$ship}.$stopRequested">
+          <return value="false"/>
+        </do_if>
+        <!-- A queued buy/deliver pair or an unresolved reservation MUST
+             survive Stop and save/load until recovery reconciles it. -->
+        <do_if value="global.$LMP_Ships.{$ship}.$job? and global.$LMP_Ships.{$ship}.$job != null">
+          <return value="false"/>
+        </do_if>
+        <run_actions ref="md.LMP_TradeCycle.LMP_TripIsFullyFinished" result="$idle">
+          <param name="ship" value="$ship"/>
+        </run_actions>
+        <do_if value="not $idle">
+          <return value="false"/>
+        </do_if>
+        <!-- Other mods/player may have replaced our default in the
+             meantime. In that case, only remove our metadata. -->
+        <do_if value="$ship.defaultorder? and @$ship.defaultorder.id == 'LMP_Passive'">
+          <cancel_order order="$ship.defaultorder"/>
+        </do_if>
+        <do_if value="$ship.defaultorder? and @$ship.defaultorder.id == 'LMP_Passive'">
+          <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'STOP_REMOVE_RETRY'"/>
+          <return value="false"/>
+        </do_if>
+        <remove_value name="global.$LMP_Ships.{$ship}"/>
+        <run_actions ref="md.GUNPIRE_Core.GUNPIRE_Log">
+          <param name="component" value="'FLEET'"/>
+          <param name="message" value="'PASSIVE stopped and released: ' + $ship.idcode"/>
+        </run_actions>
+        <return value="true"/>
+      </actions>
+    </library>
+
+    <!-- Stop after current paired delivery; finalize immediately if idle. -->
+    <library name="LMP_StopPassiveShip" purpose="run_actions">
+      <params><param name="ship"/></params>
+      <actions>
+        <do_if value="not global.$LMP_Ships? or not global.$LMP_Ships.{$ship}?">
+          <return value="false"/>
+        </do_if>
+        <do_if value="global.$LMP_Ships.{$ship}.$role != 'PASSIVE'">
+          <return value="false"/>
+        </do_if>
+        <set_value name="global.$LMP_Ships.{$ship}.$stopRequested" exact="true"/>
+        <run_actions ref="md.LMP_ShipRegistry.LMP_FinalizePassiveStop" result="$released">
+          <param name="ship" value="$ship"/>
         </run_actions>
         <return value="true"/>
       </actions>

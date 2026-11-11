@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mdscript name="LMP_Wing_TradeAdapter" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../x4_scripting_ref/schemas/md.xsd">
+  <cues>
+    <!-- GT 1.0.4 MK3 output adapter. A GT trade candidate includes
+         $BuyOffer, $SellOffer, $Amount, $Ware, $IsSellOnly.
+         This is a read-only PREVIEW, not an order executor. In particular,
+         GT must still revalidate prices, credit, route, docking and offers
+         before any transaction. Do not patch/replace GT's AI to call this
+         until that boundary and its parameters have been verified. -->
+    <library name="LMP_PreviewMK3WingTrade" purpose="run_actions">
+      <params>
+        <param name="commander"/>
+        <param name="trade"/>
+        <param name="excludeCommander" default="false"/>
+      </params>
+      <actions>
+        <run_actions ref="md.LMP_Wing.LMP_GetWingCapacity" result="$wing">
+          <param name="commander" value="$commander"/>
+        </run_actions>
+        <do_if value="not $wing or not $trade? or not $trade.$Amount? or $trade.$Amount le 0">
+          <return value="false"/>
+        </do_if>
+        <set_value name="$ware" exact="null"/>
+        <do_if value="$trade.$Ware?">
+          <set_value name="$ware" exact="$trade.$Ware"/>
+        </do_if>
+        <do_elseif value="$trade.$BuyOffer? and $trade.$BuyOffer.ware?">
+          <set_value name="$ware" exact="$trade.$BuyOffer.ware"/>
+        </do_elseif>
+        <do_elseif value="$trade.$SellOffer? and $trade.$SellOffer.ware?">
+          <set_value name="$ware" exact="$trade.$SellOffer.ware"/>
+        </do_elseif>
+        <do_if value="not $ware? or not $ware.volume? or $ware.volume le 0">
+          <return value="false"/>
+        </do_if>
+        <set_value name="$sellOnly" exact="$trade.$IsSellOnly? and $trade.$IsSellOnly"/>
+        <!-- Ordinary MK3 purchases need two live matching offers.
+             Sell-only trades depend on *actual cargo aboard the specific
+             member*; available wing free volume is irrelevant. -->
+        <do_if value="not $sellOnly and (not $trade.$BuyOffer? or not $trade.$SellOffer? or not $trade.$BuyOffer.exists or not $trade.$SellOffer.exists)">
+          <return value="false"/>
+        </do_if>
+        <do_if value="$sellOnly">
+          <return value="false"/>
+        </do_if>
+        <set_value name="$remaining" exact="$trade.$Amount"/>
+        <set_value name="$assignments" exact="[]"/>
+        <set_value name="$volume" exact="$ware.volume"/>
+        <do_for_each name="$ship" in="$wing.$eligible">
+          <!-- Once GT committed its commander order, this is EXTRA capacity
+               only; never quote that cargo hold a second time. -->
+          <do_if value="$excludeCommander and $ship == $commander">
+            <continue/>
+          </do_if>
+          <do_if value="$remaining le 0">
+            <break/>
+          </do_if>
+          <!-- GT HomeFleetProfile uses class-specific plus universal volume.
+               Never count universal capacity twice for one ware. -->
+          <set_value name="$capacity" exact="0"/>
+          <do_if value="$ware.waretransport == waretransport.container">
+            <set_value name="$capacity" exact="$ship.cargo.free.container + $ship.cargo.free.universal"/>
+          </do_if>
+          <do_elseif value="$ware.waretransport == waretransport.solid">
+            <set_value name="$capacity" exact="$ship.cargo.free.solid + $ship.cargo.free.universal"/>
+          </do_elseif>
+          <do_elseif value="$ware.waretransport == waretransport.liquid">
+            <set_value name="$capacity" exact="$ship.cargo.free.liquid + $ship.cargo.free.universal"/>
+          </do_elseif>
+          <do_if value="$ship.cargo.{$ware}.max le 0">
+            <continue/>
+          </do_if>
+          <set_value name="$fits" exact="($capacity / $volume)i"/>
+          <set_value name="$qty" exact="[$fits, $remaining].min"/>
+          <do_if value="$qty le 0">
+            <continue/>
+          </do_if>
+          <append_to_list name="$assignments" exact="table[$ship = $ship, $ware = $ware, $amount = $qty, $buyOffer = $trade.$BuyOffer, $sellOffer = $trade.$SellOffer]"/>
+          <set_value name="$remaining" exact="$remaining - $qty"/>
+        </do_for_each>
+        <return value="table[$commander = $commander, $trade = $trade, $assignments = $assignments, $requested = $trade.$Amount, $unallocated = $remaining, $ready = $remaining == 0]"/>
+      </actions>
+    </library>
+  </cues>
+</mdscript>

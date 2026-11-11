@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mdscript name="LMP_Wing_Commands" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../x4_scripting_ref/schemas/md.xsd">
+  <cues>
+    <!-- These are explicit integration commands for future UI actions.
+         A GUI adapter can signal player.galaxy with param LMP_Wing_Register
+         and param2 = commander; no direct ship mutation occurs. -->
+    <cue name="LMP_Wing_CommandRegister" instantiate="true">
+      <conditions>
+        <event_object_signalled object="player.galaxy" param="'LMP_Wing_Register'"/>
+      </conditions>
+      <actions>
+        <set_value name="$ship" exact="event.param2"/>
+        <run_actions ref="md.LMP_Wing.LMP_RegisterWing" result="$ok">
+          <param name="commander" value="$ship"/>
+        </run_actions>
+        <do_if value="$ok">
+          <run_actions ref="md.LMP_Wing.LMP_ReportWing" result="$report">
+            <param name="commander" value="$ship"/>
+          </run_actions>
+          <show_notification text="'GUNPIRE: MK3 wing observed (no orders changed)'" timeout="5s"/>
+        </do_if>
+        <do_else>
+          <show_notification text="'GUNPIRE: Wing commander must be a player MK3 ship'" timeout="5s"/>
+        </do_else>
+      </actions>
+    </cue>
+    <cue name="LMP_Wing_CommandUnregister" instantiate="true">
+      <conditions>
+        <event_object_signalled object="player.galaxy" param="'LMP_Wing_Unregister'"/>
+      </conditions>
+      <actions>
+        <set_value name="$ship" exact="event.param2"/>
+        <do_if value="not $ship? or not global.$LMP_Wings? or not global.$LMP_Wings.{$ship}?">
+          <return/>
+        </do_if>
+        <!-- Dedicated LMP wing has a separate, guarded release path.
+             Unlike the legacy GT observer, it also owns an LMP ship entry. -->
+        <do_if value="global.$LMP_Wings.{$ship}.$state == 'LMP_WING_CONFIG_ONLY'">
+          <run_actions ref="md.LMP_Wing.LMP_UnregisterDedicatedWing" result="$released">
+            <param name="commander" value="$ship"/>
+          </run_actions>
+          <show_notification text="if $released then 'LMP: Dedicated Wing released' else 'LMP: Wing still has assignments or cargo'" timeout="5s"/>
+          <return/>
+        </do_if>
+        <!-- Unregister is bookkeeping-only: no ship orders, GT experience,
+             fleet commander, or assignments are altered. -->
+        <remove_value name="global.$LMP_Wings.{$ship}"/>
+        <show_notification text="'GUNPIRE: MK3 wing observation disabled'" timeout="5s"/>
+      </actions>
+    </cue>
+  </cues>
+</mdscript>

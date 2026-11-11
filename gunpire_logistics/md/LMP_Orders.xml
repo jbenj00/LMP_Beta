@@ -12,20 +12,20 @@
         <param name="job" default="'none'"/>
       </params>
       <actions>
-        <run_actions ref="GUNPIRE_AllowsRealOrders" result="$allows"/>
+        <run_actions ref="md.GUNPIRE_Config.GUNPIRE_AllowsRealOrders" result="$allows"/>
         <do_if value="not $allows">
-          <run_actions ref="GUNPIRE_Log">
+          <run_actions ref="md.GUNPIRE_Core.GUNPIRE_Log">
             <param name="component" value="'ORDER'"/>
             <param name="job" value="$job"/>
             <param name="message" value="'Blocked: profile forbids real orders'"/>
           </run_actions>
           <return value="false"/>
         </do_if>
-        <run_actions ref="GUNPIRE_IsGTManagedShip" result="$isGTManaged">
+        <run_actions ref="md.GUNPIRE_Core.GUNPIRE_IsGTManagedShip" result="$isGTManaged">
           <param name="ship" value="$ship"/>
         </run_actions>
         <do_if value="$isGTManaged">
-          <run_actions ref="GUNPIRE_Log">
+          <run_actions ref="md.GUNPIRE_Core.GUNPIRE_Log">
             <param name="component" value="'ORDER'"/>
             <param name="job" value="$job"/>
             <param name="message" value="'Blocked: GT ship ' + $ship.idcode"/>
@@ -33,7 +33,7 @@
           <return value="false"/>
         </do_if>
         <do_if value="not $ship.exists or not $tradeoffer? or not $tradeoffer.exists">
-          <run_actions ref="GUNPIRE_Log">
+          <run_actions ref="md.GUNPIRE_Core.GUNPIRE_Log">
             <param name="component" value="'ORDER'"/>
             <param name="job" value="$job"/>
             <param name="message" value="'Blocked: invalid ship or tradeoffer'"/>
@@ -42,7 +42,7 @@
         </do_if>
         <create_trade_order object="$ship" tradeoffer="$tradeoffer" amount="$amount" name="$order"/>
         <do_if value="$order?">
-          <run_actions ref="GUNPIRE_Log">
+          <run_actions ref="md.GUNPIRE_Core.GUNPIRE_Log">
             <param name="component" value="'ORDER'"/>
             <param name="job" value="$job"/>
             <param name="message" value="'create_trade_order issued for ' + $ship.idcode + ' amount=' + $amount"/>
@@ -51,7 +51,7 @@
           <set_value name="global.$LMP_Ships.{$ship}.$job" exact="$job"/>
           <return value="true"/>
         </do_if>
-        <run_actions ref="GUNPIRE_Log">
+        <run_actions ref="md.GUNPIRE_Core.GUNPIRE_Log">
           <param name="component" value="'ORDER'"/>
           <param name="job" value="$job"/>
           <param name="message" value="'create_trade_order failed for ' + $ship.idcode"/>

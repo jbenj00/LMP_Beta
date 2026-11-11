@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mdscript name="LMP_StationDemand" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../x4_scripting_ref/schemas/md.xsd">
+  <cues>
+    <!-- GT lib.gt.mk4.player.stations.xml: player-station discovery.
+         VAS RunPlannerBody: use real, valid target buy offers.
+         GUNPIRE-only: persist first-seen age for each station/ware need. -->
+    <library name="LMP_ScanAgedStationOffers" purpose="run_actions">
+      <params><param name="ship"/></params>
+      <actions>
+        <do_if value="not global.$LMP_POSFirstSeen?">
+          <set_value name="global.$LMP_POSFirstSeen" exact="table[]"/>
+        </do_if>
+        <set_value name="$fresh" exact="table[]"/>
+        <set_value name="$needs" exact="[]"/>
+        <find_station_by_true_owner name="$stations" faction="faction.player" space="player.galaxy" checkoperational="true" multiple="true"/>
+        <do_if value="$stations?">
+          <do_all exact="$stations.count" counter="$i">
+            <set_value name="$station" exact="$stations.{$i}"/>
+            <do_if value="not $station? or not $station.exists or $station.gatedistance.{$ship} lt 0">
+              <continue/>
+            </do_if>
+            <find_buy_offer buyer="$station" multiple="true" tradepartner="$ship" result="$offers"/>
+            <do_if value="not $offers?">
+              <continue/>
+            </do_if>
+            <do_all exact="$offers.count" counter="$j">
+              <set_value name="$offer" exact="$offers.{$j}"/>
+              <do_if value="not $offer? or not $offer.exists or not $offer.available or not $offer.ware? or $offer.amount le 0 or $offer.ware.waretransport != waretransport.container">
+                <continue/>
+              </do_if>
+              <set_value name="$key" exact="'$' + $station.idcode + '_' + $offer.ware"/>
+              <set_value name="$fresh.{$key}" exact="true"/>
+              <do_if value="not global.$LMP_POSFirstSeen.{$key}?">
+                <set_value name="global.$LMP_POSFirstSeen.{$key}" exact="player.age"/>
+              </do_if>
+              <append_to_list name="$needs" exact="table[$site = $station, $ware = $offer.ware, $qty = $offer.amount, $offer = $offer, $firstSeen = global.$LMP_POSFirstSeen.{$key}, $type = 'POS']"/>
+            </do_all>
+          </do_all>
+        </do_if>
+        <!-- Do not prune age history from a per-ship tradepartner scan:
+             another ship may still see a demand invisible to this ship.
+             Cleanup requires a buyer-independent world scan. -->
+        <do_if value="$needs.count gt 1">
+          <sort_list list="$needs" sortbyvalue="loop.element.$firstSeen"/>
+        </do_if>
+        <return value="$needs"/>
+      </actions>
+    </library>
+  </cues>
+</mdscript>

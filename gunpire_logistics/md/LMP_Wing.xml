@@ -1,0 +1,359 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mdscript name="LMP_Wing" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../x4_scripting_ref/schemas/md.xsd">
+  <cues>
+    <!-- Safe wing control plane. Does NOT write default orders, override GT,
+         move ships, rename ships, or take cargo. Native commander/subordinate
+         membership is the only supported topology at this stage.
+         Evidence: GT 1.0.4 gt_core_system.xml RunCommanderGTReactivationPass
+         uses commander.allsubordinates, ship.commander and toplevelcommander.
+         Capacity: GT MK3 uses cargo.capacity.all; per-ware planning\n         uses class-specific capacity plus universal (shared). -->
+    <cue name="LMP_Wing_Init" instantiate="true">
+      <conditions><event_game_loaded/></conditions>
+      <actions>
+        <do_if value="not global.$LMP_Wings?">
+          <set_value name="global.$LMP_Wings" exact="table[]"/>
+        </do_if>
+        <!-- Always opt out by default; enabling execution must be an
+             explicit player action after version-specific testing. -->
+        <do_if value="not global.$LMP_Wing_ExecuteEnabled?">
+          <set_value name="global.$LMP_Wing_ExecuteEnabled" exact="false"/>
+        </do_if>
+      </actions>
+    </cue>
+
+    <!-- Create a persistent logical wing without touching the commander's GT order.
+         Existing subordinates are re-discovered at each planning boundary. -->
+    <library name="LMP_RegisterWing" purpose="run_actions">
+      <params><param name="commander"/></params>
+      <actions>
+        <do_if value="not $commander? or not $commander.exists or not $commander.isplayerowned or not $commander.isclass.{class.ship}">
+          <return value="false"/>
+        </do_if>
+        <!-- PASSIVE ships are exclusively owned by the construction dispatcher. -->
+        <do_if value="global.$LMP_Ships? and global.$LMP_Ships.{$commander}? and global.$LMP_Ships.{$commander}.$role == 'PASSIVE'">
+          <return value="false"/>
+        </do_if>
+        <do_if value="not $commander.defaultorder? or $commander.defaultorder.id != 'GalaxyTraderMK3'">
+          <return value="false"/>
+        </do_if>
+        <do_if value="not global.$LMP_Wings?">
+          <set_value name="global.$LMP_Wings" exact="table[]"/>
+        </do_if>
+        <do_if value="not global.$LMP_Wings.{$commander}?">
+          <set_value name="global.$LMP_Wings.{$commander}" exact="table[]"/>
+          <set_value name="global.$LMP_Wings.{$commander}.$state" exact="'OBSERVE_ONLY'"/>
+          <set_value name="global.$LMP_Wings.{$commander}.$executeEnabled" exact="false"/>
+          <set_value name="global.$LMP_Wings.{$commander}.$jobsCompleted" exact="0"/>
+        </do_if>
+        <return value="true"/>
+      </actions>
+    </library>
+
+    <!-- Dedicated LMP MK3 wing enrollment. Unlike the legacy
+         experimental GT bridge, this does not require or create GT orders.
+         Registration is configuration-only until a verified LMP MK3
+         default order and independent trade executor are implemented. -->
+    <library name="LMP_RegisterDedicatedWing" purpose="run_actions">
+      <params><param name="commander"/></params>
+      <actions>
+        <do_if value="not $commander? or not $commander.exists or not $commander.isplayerowned or not $commander.isclass.{class.ship}">
+          <return value="false"/>
+        </do_if>
+        <do_if value="$commander.commander? or $commander.defaultorder? or ($commander.orders? and $commander.orders.count gt 0) or ($commander.tradeorders? and $commander.tradeorders.count gt 0)">
+          <return value="false"/>
+        </do_if>
+        <do_if value="not $commander.cargo.list? or $commander.cargo.list.count gt 0">
+          <return value="false"/>
+        </do_if>
+        <run_actions ref="md.GUNPIRE_Core.GUNPIRE_IsGTManagedShip" result="$gt">
+          <param name="ship" value="$commander"/>
+        </run_actions>
+        <do_if value="$gt or (global.$LMP_Wings? and global.$LMP_Wings.{$commander}?)">
+          <return value="false"/>
+        </do_if>
+        <run_actions ref="md.LMP_ShipRegistry.LMP_EnrollShip" result="$enrolled">
+          <param name="ship" value="$commander"/>
+          <param name="role" value="'WING'"/>
+        </run_actions>
+        <do_if value="not $enrolled">
+          <return value="false"/>
+        </do_if>
+        <do_if value="not global.$LMP_Wings?">
+          <set_value name="global.$LMP_Wings" exact="table[]"/>
+        </do_if>
+        <set_value name="global.$LMP_Wings.{$commander}" exact="table[]"/>
+        <set_value name="global.$LMP_Wings.{$commander}.$state" exact="'LMP_WING_CONFIG_ONLY'"/>
+        <set_value name="global.$LMP_Wings.{$commander}.$executeEnabled" exact="false"/>
+        <set_value name="global.$LMP_Wings.{$commander}.$homeSector" exact="null"/>
+        <set_value name="global.$LMP_Wings.{$commander}.$homeStation" exact="null"/>
+        <return value="true"/>
+      </actions>
+    </library>
+
+    <!-- Store a dedicated LMP Wing home preference without assigning
+         commander, station, GT default order or ship movement. The future
+         LMP MK3 trader must honor this setting when implemented. -->
+    <library name="LMP_SetDedicatedWingHome" purpose="run_actions">
+      <params>
+        <param name="commander"/>
+        <param name="mode"/>
+        <param name="home" default="null"/>
+      </params>
+      <actions>
+        <do_if value="not $commander? or not $commander.exists or not global.$LMP_Wings? or not global.$LMP_Wings.{$commander}?">
+          <return value="false"/>
+        </do_if>
+        <do_if value="global.$LMP_Wings.{$commander}.$state != 'LMP_WING_CONFIG_ONLY' or not global.$LMP_Ships? or not global.$LMP_Ships.{$commander}? or global.$LMP_Ships.{$commander}.$role != 'WING'">
+          <return value="false"/>
+        </do_if>
+        <do_if value="$mode == 'SECTOR'">
+          <do_if value="not $home? or not $home.exists or not $home.isclass.sector">
+            <return value="false"/>
+          </do_if>
+          <set_value name="global.$LMP_Wings.{$commander}.$homeSector" exact="$home"/>
+          <set_value name="global.$LMP_Wings.{$commander}.$homeStation" exact="null"/>
+        </do_if>
+        <do_elseif value="$mode == 'STATION'">
+          <do_if value="not $home? or not $home.exists or not $home.isclass.station">
+            <return value="false"/>
+          </do_if>
+          <set_value name="global.$LMP_Wings.{$commander}.$homeStation" exact="$home"/>
+          <set_value name="global.$LMP_Wings.{$commander}.$homeSector" exact="null"/>
+        </do_elseif>
+        <do_elseif value="$mode == 'NONE'">
+          <set_value name="global.$LMP_Wings.{$commander}.$homeStation" exact="null"/>
+          <set_value name="global.$LMP_Wings.{$commander}.$homeSector" exact="null"/>
+        </do_elseif>
+        <do_else>
+          <return value="false"/>
+        </do_else>
+        <return value="true"/>
+      </actions>
+    </library>
+
+    <!-- Release only an idle, configuration-only LMP Wing. Do not touch
+         native orders or a wing with unresolved cargo/work. -->
+    <library name="LMP_UnregisterDedicatedWing" purpose="run_actions">
+      <params><param name="commander"/></params>
+      <actions>
+        <do_if value="not $commander? or not $commander.exists or not global.$LMP_Ships? or not global.$LMP_Ships.{$commander}? or not global.$LMP_Wings? or not global.$LMP_Wings.{$commander}?">
+          <return value="false"/>
+        </do_if>
+        <do_if value="global.$LMP_Ships.{$commander}.$role != 'WING' or global.$LMP_Wings.{$commander}.$state != 'LMP_WING_CONFIG_ONLY'">
+          <return value="false"/>
+        </do_if>
+        <do_if value="global.$LMP_Ships.{$commander}.$job? and global.$LMP_Ships.{$commander}.$job != null">
+          <return value="false"/>
+        </do_if>
+        <do_if value="not $commander.cargo.list? or $commander.cargo.list.count gt 0 or ($commander.tradeorders? and $commander.tradeorders.count gt 0) or ($commander.orders? and $commander.orders.count gt 0) or $commander.defaultorder?">
+          <return value="false"/>
+        </do_if>
+        <!-- Release the commander only after every enrolled member was
+             separately released; never orphan LMP-owned member records. -->
+        <do_if value="$commander.subordinates?">
+          <do_for_each name="$member" in="$commander.subordinates">
+            <do_if value="global.$LMP_Ships.{$member}? and global.$LMP_Ships.{$member}.$role == 'WING_MEMBER' and global.$LMP_Ships.{$member}.$wingCommander == $commander">
+              <return value="false"/>
+            </do_if>
+          </do_for_each>
+        </do_if>
+        <!-- A temporarily detached member may still be linked in our saved
+             LMP registry; check the ledger, not just native topology. -->
+        <do_for_each name="$enrolledShip" in="global.$LMP_Ships.keys">
+          <do_if value="global.$LMP_Ships.{$enrolledShip}.$role == 'WING_MEMBER' and global.$LMP_Ships.{$enrolledShip}.$wingCommander == $commander">
+            <return value="false"/>
+          </do_if>
+        </do_for_each>
+        <remove_value name="global.$LMP_Wings.{$commander}"/>
+        <remove_value name="global.$LMP_Ships.{$commander}"/>
+        <return value="true"/>
+      </actions>
+    </library>
+
+    <!-- Explicitly enroll an existing native DIRECT subordinate in an
+         LMP-only wing. Never recruit an arbitrary escort, independent trader
+         or PASSIVE gap filler merely because it shares a commander. -->
+    <library name="LMP_EnrollDedicatedWingMember" purpose="run_actions">
+      <params>
+        <param name="commander"/>
+        <param name="member"/>
+      </params>
+      <actions>
+        <do_if value="not $commander? or not $commander.exists or not $member? or not $member.exists or not $member.isplayerowned or not $member.isclass.{class.ship}">
+          <return value="false"/>
+        </do_if>
+        <do_if value="not $member.commander? or $member.commander != $commander or not global.$LMP_Wings? or not global.$LMP_Wings.{$commander}?">
+          <return value="false"/>
+        </do_if>
+        <do_if value="global.$LMP_Wings.{$commander}.$state != 'LMP_WING_CONFIG_ONLY' or not global.$LMP_Ships? or not global.$LMP_Ships.{$commander}? or global.$LMP_Ships.{$commander}.$role != 'WING'">
+          <return value="false"/>
+        </do_if>
+        <!-- Native Defence/escort subordinates commonly use an Assist
+             default. Preserve that assignment; the GT ownership check
+             below excludes Assist backed by Galaxy Trader. -->
+        <do_if value="global.$LMP_Ships.{$member}? or ($member.defaultorder? and $member.defaultorder.id != 'Assist') or ($member.orders? and $member.orders.count gt 0) or ($member.tradeorders? and $member.tradeorders.count gt 0)">
+          <return value="false"/>
+        </do_if>
+        <do_if value="not $member.cargo.list? or $member.cargo.list.count gt 0">
+          <return value="false"/>
+        </do_if>
+        <run_actions ref="md.GUNPIRE_Core.GUNPIRE_IsGTManagedShip" result="$gt">
+          <param name="ship" value="$member"/>
+        </run_actions>
+        <do_if value="$gt">
+          <return value="false"/>
+        </do_if>
+        <run_actions ref="md.LMP_ShipRegistry.LMP_EnrollShip" result="$enrolled">
+          <param name="ship" value="$member"/>
+          <param name="role" value="'WING_MEMBER'"/>
+        </run_actions>
+        <do_if value="not $enrolled">
+          <return value="false"/>
+        </do_if>
+        <set_value name="global.$LMP_Ships.{$member}.$wingCommander" exact="$commander"/>
+        <return value="true"/>
+      </actions>
+    </library>
+
+    <!-- Unenroll only a clean, idle, still-assigned native member.
+         Never cancel orders or remove cargo to release an LMP ship. -->
+    <library name="LMP_UnenrollDedicatedWingMember" purpose="run_actions">
+      <params>
+        <param name="commander"/>
+        <param name="member"/>
+      </params>
+      <actions>
+        <do_if value="not $commander? or not $commander.exists or not $member? or not $member.exists or not global.$LMP_Ships? or not global.$LMP_Ships.{$member}?">
+          <return value="false"/>
+        </do_if>
+        <do_if value="global.$LMP_Ships.{$member}.$role != 'WING_MEMBER' or global.$LMP_Ships.{$member}.$wingCommander != $commander">
+          <return value="false"/>
+        </do_if>
+        <do_if value="global.$LMP_Ships.{$member}.$job? and global.$LMP_Ships.{$member}.$job != null">
+          <return value="false"/>
+        </do_if>
+        <do_if value="not $member.cargo.list? or $member.cargo.list.count gt 0 or ($member.tradeorders? and $member.tradeorders.count gt 0) or ($member.orders? and $member.orders.count gt 0) or ($member.defaultorder? and $member.defaultorder.id != 'Assist')">
+          <return value="false"/>
+        </do_if>
+        <remove_value name="global.$LMP_Ships.{$member}"/>
+        <return value="true"/>
+      </actions>
+    </library>
+
+    <!-- Only count direct subordinates in the same native fleet. Do not
+         inadvertently aggregate an entire nested fleet or GT trader assigned
+         elsewhere. Ships with queued work/cargo retain their actual free volume. -->
+    <library name="LMP_GetWingCapacity" purpose="run_actions">
+      <params><param name="commander"/></params>
+      <actions>
+        <do_if value="not $commander? or not $commander.exists or not global.$LMP_Wings? or not global.$LMP_Wings.{$commander}?">
+          <return value="false"/>
+        </do_if>
+        <!-- Existing save files may contain a stale wing registry entry.
+             A dedicated wing must retain its own LMP commander role;
+             the legacy observer remains separate and read-only. -->
+        <do_if value="global.$LMP_Wings.{$commander}.$state == 'LMP_WING_CONFIG_ONLY' and (not global.$LMP_Ships? or not global.$LMP_Ships.{$commander}? or global.$LMP_Ships.{$commander}.$role != 'WING')">
+          <return value="false"/>
+        </do_if>
+        <!-- Existing save files may contain a stale wing registry entry.
+             Fail closed if its commander was reassigned to PASSIVE. -->
+        <do_if value="global.$LMP_Ships? and global.$LMP_Ships.{$commander}? and global.$LMP_Ships.{$commander}.$role == 'PASSIVE'">
+          <return value="false"/>
+        </do_if>
+        <set_value name="$ships" exact="[]"/>
+        <append_to_list name="$ships" exact="$commander"/>
+        <do_if value="$commander.subordinates?">
+          <do_for_each name="$member" in="$commander.subordinates">
+            <do_if value="$member? and $member.exists and $member.isplayerowned and $member.isclass.{class.ship} and $member.commander? and $member.commander == $commander">
+              <append_to_list name="$ships" exact="$member"/>
+            </do_if>
+          </do_for_each>
+        </do_if>
+        <set_value name="$totalCapacity" exact="0"/>
+        <set_value name="$totalFree" exact="0"/>
+        <set_value name="$eligibleFree" exact="0"/>
+        <set_value name="$eligible" exact="[]"/>
+        <set_value name="$skipped" exact="[]"/>
+        <do_for_each name="$ship" in="$ships">
+          <set_value name="$capacity" exact="$ship.cargo.capacity.all"/>
+          <set_value name="$free" exact="$ship.cargo.free.all"/>
+          <!-- Legacy observation still reports the whole native topology;
+               dedicated LMP reports only explicitly eligible ship volume. -->
+          <do_if value="global.$LMP_Wings.{$commander}.$state != 'LMP_WING_CONFIG_ONLY'">
+            <set_value name="$totalCapacity" exact="$totalCapacity + $capacity"/>
+            <set_value name="$totalFree" exact="$totalFree + $free"/>
+          </do_if>
+          <!-- Commander may run MK3; subordinates with their own GT default
+               orders are not eligible for a coordinated wing transport leg. -->
+          <set_value name="$usable" exact="$capacity gt 0"/>
+          <!-- Dedicated LMP wings use explicit member enrollment. Native
+               commander topology alone never authorizes cargo allocation. -->
+          <do_if value="global.$LMP_Wings.{$commander}.$state == 'LMP_WING_CONFIG_ONLY' and $ship != $commander">
+            <do_if value="not global.$LMP_Ships? or not global.$LMP_Ships.{$ship}?">
+              <set_value name="$usable" exact="false"/>
+            </do_if>
+            <do_elseif value="global.$LMP_Ships.{$ship}.$role != 'WING_MEMBER' or global.$LMP_Ships.{$ship}.$wingCommander != $commander">
+              <set_value name="$usable" exact="false"/>
+            </do_elseif>
+          </do_if>
+          <!-- Dedicated LMP trade previews cannot borrow ships doing
+               unrelated work. Keep Assist/Defence as a native assignment,
+               but reject other defaults, queued orders and existing cargo. -->
+          <do_if value="global.$LMP_Wings.{$commander}.$state == 'LMP_WING_CONFIG_ONLY'">
+            <do_if value="($ship.orders? and $ship.orders.count gt 0) or ($ship.tradeorders? and $ship.tradeorders.count gt 0) or not $ship.cargo.list? or $ship.cargo.list.count gt 0">
+              <set_value name="$usable" exact="false"/>
+            </do_if>
+            <do_if value="$ship != $commander and $ship.defaultorder? and $ship.defaultorder.id != 'Assist'">
+              <set_value name="$usable" exact="false"/>
+            </do_if>
+            <do_if value="$ship == $commander and $ship.defaultorder?">
+              <set_value name="$usable" exact="false"/>
+            </do_if>
+          </do_if>
+          <!-- A PASSIVE gap filler must never be recruited into a wing trade. -->
+          <do_if value="global.$LMP_Ships? and global.$LMP_Ships.{$ship}? and global.$LMP_Ships.{$ship}.$role == 'PASSIVE'">
+            <set_value name="$usable" exact="false"/>
+          </do_if>
+          <!-- Accept native escort/defence subordinates, including those
+               managed by Fleet Doctrine, but never count a subordinate
+               running an independent GT default order. -->
+          <do_if value="$ship != $commander and $ship.defaultorder? and global.$GT_ProtectedOrderIDs? and global.$GT_ProtectedOrderIDs.indexof.{$ship.defaultorder.id}">
+            <set_value name="$usable" exact="false"/>
+          </do_if>
+          <do_if value="$ship != $commander and $ship.defaultorder? and $ship.defaultorder.id == 'Assist' and $ship.defaultorder.$baseorder? and global.$GT_ProtectedOrderIDs? and global.$GT_ProtectedOrderIDs.indexof.{$ship.defaultorder.$baseorder.id}">
+            <set_value name="$usable" exact="false"/>
+          </do_if>
+          <do_if value="$ship != $commander and $ship.tradeorders? and $ship.tradeorders.count gt 0">
+            <set_value name="$usable" exact="false"/>
+          </do_if>
+          <do_if value="$usable">
+            <append_to_list name="$eligible" exact="$ship"/>
+            <set_value name="$eligibleFree" exact="$eligibleFree + $free"/>
+            <do_if value="global.$LMP_Wings.{$commander}.$state == 'LMP_WING_CONFIG_ONLY'">
+              <set_value name="$totalCapacity" exact="$totalCapacity + $capacity"/>
+              <set_value name="$totalFree" exact="$totalFree + $free"/>
+            </do_if>
+          </do_if>
+          <do_else>
+            <append_to_list name="$skipped" exact="$ship"/>
+          </do_else>
+        </do_for_each>
+        <return value="table[$commander = $commander, $ships = $ships, $eligible = $eligible, $skipped = $skipped, $capacity = $totalCapacity, $free = $totalFree, $eligibleFree = $eligibleFree]"/>
+      </actions>
+    </library>
+
+    <!-- Read-only observation for debugging and future GT MK3 adapter.
+         Never reinterpret this as authorization to change GT's default order. -->
+    <library name="LMP_ReportWing" purpose="run_actions">
+      <params><param name="commander"/></params>
+      <actions>
+        <run_actions ref="md.LMP_Wing.LMP_GetWingCapacity" result="$stats"><param name="commander" value="$commander"/></run_actions>
+        <do_if value="not $stats">
+          <return value="false"/>
+        </do_if>
+        <debug_text text="'[GUNPIRE][WING] WC=' + $commander.idcode + ' ships=' + $stats.$ships.count + ' eligible=' + $stats.$eligible.count + ' skipped=' + $stats.$skipped.count + ' cap=' + $stats.$capacity + ' free=' + $stats.$free + ' usable=' + $stats.$eligibleFree" chance="100"/>
+        <return value="$stats"/>
+      </actions>
+    </library>
+  </cues>
+</mdscript>

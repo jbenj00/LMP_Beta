@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mdscript name="LMP_Wing_Planner" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../x4_scripting_ref/schemas/md.xsd">
+  <cues>
+    <!-- Strict, read-only location scope for LMP's independent MK3
+         planner. Home SECTOR currently limits both trade endpoints to that
+         sector; home STATION requires that station to be one endpoint.
+         No radius or GT home-system semantics are inferred. -->
+    <library name="LMP_CheckDedicatedWingRouteScope" purpose="run_actions">
+      <params>
+        <param name="commander"/>
+        <param name="seller"/>
+        <param name="buyer"/>
+      </params>
+      <actions>
+        <do_if value="not $commander? or not $commander.exists or not $seller? or not $seller.exists or not $buyer? or not $buyer.exists">
+          <return value="false"/>
+        </do_if>
+        <do_if value="not global.$LMP_Wings? or not global.$LMP_Wings.{$commander}? or not global.$LMP_Ships? or not global.$LMP_Ships.{$commander}?">
+          <return value="false"/>
+        </do_if>
+        <set_value name="$wing" exact="global.$LMP_Wings.{$commander}"/>
+        <do_if value="$wing.$state != 'LMP_WING_CONFIG_ONLY' or global.$LMP_Ships.{$commander}.$role != 'WING'">
+          <return value="false"/>
+        </do_if>
+        <do_if value="$wing.$homeSector? and $wing.$homeSector != null">
+          <do_if value="not $wing.$homeSector.exists or not $seller.sector? or not $buyer.sector?">
+            <return value="false"/>
+          </do_if>
+          <return value="$seller.sector == $wing.$homeSector and $buyer.sector == $wing.$homeSector"/>
+        </do_if>
+        <do_if value="$wing.$homeStation? and $wing.$homeStation != null">
+          <return value="$wing.$homeStation.exists and ($seller == $wing.$homeStation or $buyer == $wing.$homeStation)"/>
+        </do_if>
+        <return value="true"/>
+      </actions>
+    </library>
+
+    <!-- Preview a proposed route from independently supplied live offers.
+         Only the registered LMP fleet contributes volume. This planner does
+         not discover trades, score profit, reserve stock, or issue orders.
+         Callers must independently verify offer prices, transport rights,
+         credits, blacklist rules and availability before execution. -->
+    <library name="LMP_PreviewDedicatedWingRoute" purpose="run_actions">
+      <params>
+        <param name="commander"/>
+        <param name="seller"/>
+        <param name="buyer"/>
+        <param name="ware"/>
+        <param name="quantity"/>
+      </params>
+      <actions>
+        <run_actions ref="md.LMP_Wing_Planner.LMP_CheckDedicatedWingRouteScope" result="$withinScope">
+          <param name="commander" value="$commander"/>
+          <param name="seller" value="$seller"/>
+          <param name="buyer" value="$buyer"/>
+        </run_actions>
+        <do_if value="not $withinScope or not $ware? or not $ware.volume? or $ware.volume le 0 or not $quantity? or $quantity le 0">
+          <return value="false"/>
+        </do_if>
+        <set_value name="$needs" exact="[]"/>
+        <append_to_list name="$needs" exact="table[$ware = $ware, $qty = $quantity]"/>
+        <run_actions ref="md.LMP_Wing_Planner.LMP_PlanWingCargo" result="$plan">
+          <param name="commander" value="$commander"/>
+          <param name="demands" value="$needs"/>
+        </run_actions>
+        <do_if value="not $plan? or not $plan.$assignments? or $plan.$allocatedUnits le 0">
+          <return value="false"/>
+        </do_if>
+        <return value="table[$commander = $commander, $seller = $seller, $buyer = $buyer, $ware = $ware, $requested = $quantity, $allocated = $plan.$allocatedUnits, $unallocated = $plan.$unallocated, $assignments = $plan.$assignments, $quoteOnly = true, $requiresMarketValidation = true]"/>
+      </actions>
+    </library>
+
+    <!-- Read-only allocation. GT source: lib.gt.live.search.xml evaluates
+         waretransport.container/solid/liquid and class+universal hold volume.
+         Universal free cargo is ONE shared pool, not three independent pools.
+         No orders, reservations, or GT assignments are altered here. -->
+    <library name="LMP_PlanWingCargo" purpose="run_actions">
+      <params>
+        <param name="commander"/>
+        <param name="demands"/>
+      </params>
+      <actions>
+        <run_actions ref="md.LMP_Wing.LMP_GetWingCapacity" result="$wing">
+          <param name="commander" value="$commander"/>
+        </run_actions>
+        <do_if value="not $wing or not $demands? or $demands.count == 0">
+          <return value="false"/>
+        </do_if>
+        <set_value name="$assignments" exact="[]"/>
+        <set_value name="$remaining" exact="[]"/>
+        <set_value name="$allocated" exact="0"/>
+        <set_value name="$missing" exact="0"/>
+        <set_value name="$slots" exact="[]"/>
+        <do_for_each name="$ship" in="$wing.$eligible">
+          <!-- Separate per-type space from the universal pool. Mutate only
+               these local working slots, never physical ship cargo. -->
+          <append_to_list name="$slots" exact="table[
+            $ship = $ship,
+            $container = $ship.cargo.free.container,
+            $solid = $ship.cargo.free.solid,
+            $liquid = $ship.cargo.free.liquid,
+            $universal = $ship.cargo.free.universal
+          ]"/>
+        </do_for_each>
+        <do_for_each name="$demand" in="$demands">
+          <do_if value="not $demand.$ware? or not $demand.$qty? or $demand.$qty le 0 or $demand.$ware.volume le 0">
+            <return value="false"/>
+          </do_if>
+          <set_value name="$need" exact="$demand.$qty"/>
+          <set_value name="$ware" exact="$demand.$ware"/>
+          <do_for_each name="$slot" in="$slots">
+            <do_if value="$need le 0">
+              <break/>
+            </do_if>
+            <set_value name="$ship" exact="$slot.$ship"/>
+            <!-- The ship must be able to transport this specific ware. -->
+            <do_if value="$ship.cargo.{$ware}.max le 0">
+              <continue/>
+            </do_if>
+            <set_value name="$classFree" exact="0"/>
+            <do_if value="$ware.waretransport == waretransport.container">
+              <set_value name="$classFree" exact="$slot.$container"/>
+            </do_if>
+            <do_elseif value="$ware.waretransport == waretransport.solid">
+              <set_value name="$classFree" exact="$slot.$solid"/>
+            </do_elseif>
+            <do_elseif value="$ware.waretransport == waretransport.liquid">
+              <set_value name="$classFree" exact="$slot.$liquid"/>
+            </do_elseif>
+            <do_else>
+              <continue/>
+            </do_else>
+            <set_value name="$canFit" exact="(($classFree + $slot.$universal) / $ware.volume)i"/>
+            <set_value name="$take" exact="[$need, $canFit].min"/>
+            <do_if value="$take le 0">
+              <continue/>
+            </do_if>
+            <set_value name="$volume" exact="$take * $ware.volume"/>
+            <!-- Consume dedicated ware space first. Universal space is
+                 consumed only when class-specific cargo is exhausted. -->
+            <set_value name="$dedicated" exact="[$volume, $classFree].min"/>
+            <set_value name="$shared" exact="$volume - $dedicated"/>
+            <do_if value="$ware.waretransport == waretransport.container">
+              <set_value name="$slot.$container" exact="$slot.$container - $dedicated"/>
+            </do_if>
+            <do_elseif value="$ware.waretransport == waretransport.solid">
+              <set_value name="$slot.$solid" exact="$slot.$solid - $dedicated"/>
+            </do_elseif>
+            <do_elseif value="$ware.waretransport == waretransport.liquid">
+              <set_value name="$slot.$liquid" exact="$slot.$liquid - $dedicated"/>
+            </do_elseif>
+            <set_value name="$slot.$universal" exact="$slot.$universal - $shared"/>
+            <append_to_list name="$assignments" exact="table[$ship = $ship, $ware = $ware, $qty = $take, $volume = $volume]"/>
+            <set_value name="$need" exact="$need - $take"/>
+            <set_value name="$allocated" exact="$allocated + $take"/>
+          </do_for_each>
+          <do_if value="$need gt 0">
+            <append_to_list name="$remaining" exact="table[$ware = $ware, $qty = $need]"/>
+            <set_value name="$missing" exact="$missing + $need"/>
+          </do_if>
+        </do_for_each>
+        <return value="table[$commander = $commander, $assignments = $assignments, $unallocated = $remaining, $allocatedUnits = $allocated, $missingUnits = $missing, $wingCapacity = $wing.$capacity, $wingFree = $wing.$eligibleFree]"/>
+      </actions>
+    </library>
+  </cues>
+</mdscript>

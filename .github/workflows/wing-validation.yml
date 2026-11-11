@@ -1,0 +1,76 @@
+name: GUNPIRE X4 integration checks
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'gunpire_logistics/md/LMP_Wing*.xml'
+      - 'tools/check_wing_static.py'
+      - 'tools/check_passive_stop.py'
+      - 'tools/check_passive_order_setup.py'
+      - 'tools/check_lmp_role_isolation.py'
+      - 'tools/check_active_safety.py'
+      - 'gunpire_logistics/md/LMP_Takeover.xml'
+      - 'gunpire_logistics/md/LMP_ShipRegistry.xml'
+      - 'gunpire_logistics/md/LMP_ContextMenu.xml'
+      - 'gunpire_logistics/md/LMP_Recovery.xml'
+      - 'gunpire_logistics/md/LMP_TradeCycle.xml'
+      - 'gunpire_logistics/md/LMP_Reservations.xml'
+      - 'tools/check_gt_wing_patch.py'
+      - 'gunpire_logistics/aiscripts/lib.lmp.wing.extend.xml'
+      - 'gunpire_logistics/aiscripts/lib.lmp.wing.busy.xml'
+      - 'gunpire_logistics/aiscripts/order.trade.galaxytrader.xml'
+      - '.github/workflows/wing-validation.yml'
+
+concurrency:
+  group: wing-validation-${{ github.event.pull_request.number || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  check-wing:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Parse and enforce non-mutating wing module boundary
+        run: python tools/check_wing_static.py
+      - name: Check exclusive LMP fleet role ownership
+        run: python tools/check_lmp_role_isolation.py
+      - name: Check partially queued PASSIVE trade recovery
+        run: python tools/check_passive_order_setup.py
+      - name: Check PASSIVE stop safety and retry wiring
+        run: python tools/check_passive_stop.py
+      - name: Check ACTIVE GT takeover safety
+        run: python tools/check_active_safety.py
+      - name: Check availability of the X4 MD schema
+        run: test -s refs/x4_scripting_ref/schemas/md.xsd
+      - name: Validate wing MD against X4 schema
+        run: |
+          python -m pip install lxml
+          python - <<'PY'
+          from pathlib import Path
+          from lxml import etree
+          schema_path = Path('refs/x4_scripting_ref/schemas/md.xsd')
+          schema = etree.XMLSchema(etree.parse(str(schema_path)))
+          failures = []
+          files = sorted(Path('gunpire_logistics/md').glob('LMP_Wing*.xml'))
+          files += [Path('gunpire_logistics/md') / name for name in (
+              'LMP_ShipRegistry.xml', 'LMP_ContextMenu.xml',
+              'LMP_Recovery.xml', 'LMP_TradeCycle.xml',
+              'LMP_Reservations.xml',
+              'LMP_Takeover.xml',
+          )]
+          for filename in files:
+              doc = etree.parse(str(filename))
+              if not schema.validate(doc):
+                  failures.extend(f'{filename}: {error}' for error in schema.error_log)
+                  print(f'FAIL {filename}')
+              else:
+                  print(f'PASS {filename}')
+          if failures:
+              raise SystemExit('\n'.join(failures))
+          PY
+      - name: Validate opt-in GT MK3 wing helper and exact diff structure
+        run: python tools/check_gt_wing_patch.py

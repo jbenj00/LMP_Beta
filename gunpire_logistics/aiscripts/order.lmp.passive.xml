@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<aiscript name="order.lmp.passive" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../x4_scripting_ref/schemas/aiscripts.xsd" version="1">
+  <!-- GT order.trade.galaxytradermk1.xml: order registration, attention loop,
+       signal_objects -> MD dispatcher; not a duplicate trade engine. -->
+  <order id="LMP_Passive" name="'LMP > PASSIVE'" description="'Autonomous construction supply for enrolled ships'" category="trade" infinite="true" allowinloop="false" canplayercancel="true">
+    <requires>
+      <match shiptype="shiptype.lasertower" negate="true"/>
+    </requires>
+  </order>
+  <attention min="unknown">
+    <actions>
+      <label name="main_loop"/>
+      <do_if value="this.ship.exists and this.ship.isplayerowned">
+        <signal_objects object="player.galaxy" param="'LMP_Passive_Tick'" param2="this.ship"/>
+      </do_if>
+      <wait exact="90s" comment="Idle demand retry only for explicitly assigned passive ships"/>
+      <resume label="main_loop"/>
+    </actions>
+  </attention>
+</aiscript>

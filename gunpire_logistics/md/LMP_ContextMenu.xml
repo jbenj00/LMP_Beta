@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mdscript name="LMP_ContextMenu" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../x4_scripting_ref/schemas/md.xsd">
+  <cues>
+    <!-- SOURCE: GT md/gt_context_rename.xml, AddRenameAction / GT_RenameAction;
+         VAS md/supply_needs_planner_interact_menu.xml, Add_Interact_Actions.
+         Uses the existing SirNukes Interact_Menu_API. No order flush or GT takeover. -->
+    <cue name="LMP_AddPassiveActions" instantiate="true">
+      <conditions>
+        <event_cue_signalled cue="md.Interact_Menu_API.Get_Actions"/>
+      </conditions>
+      <actions>
+        <set_value name="$ship" exact="@event.param.$object"/>
+        <do_if value="not $ship? or not $ship.exists or not $ship.isclass.{class.ship} or not $ship.isplayerowned">
+          <return/>
+        </do_if>
+        <!-- Keep GT-managed ships out of LMP passive control. -->
+        <run_actions ref="md.GUNPIRE_Core.GUNPIRE_IsGTManagedShip" result="$isGT">
+          <param name="ship" value="$ship"/>
+        </run_actions>
+        <do_if value="$isGT">
+          <return/>
+        </do_if>
+        <do_if value="global.$LMP_Ships? and global.$LMP_Ships.{$ship}? and global.$LMP_Ships.{$ship}.$role == 'PASSIVE'">
+          <!-- Read-only status stays available even when Stop is pending
+               or recovery has quarantined the ship. -->
+          <signal_cue_instantly cue="md.Interact_Menu_API.Add_Action" param="table[
+            $id = 'lmp_passive_status',
+            $section = 'selected_orders',
+            $text = 'LMP: Passive Logistics Status',
+            $icon = 'order_tradeperform',
+            $callback = LMP_PassiveStatusAction,
+          ]"/>
+          <!-- While a stop is pending, never expose Start/reenrollment.
+               In-flight reservations still belong to this ship. -->
+          <do_if value="not global.$LMP_Ships.{$ship}.$stopRequested? or not global.$LMP_Ships.{$ship}.$stopRequested">
+            <signal_cue_instantly cue="md.Interact_Menu_API.Add_Action" param="table[
+              $id = 'gunpire_stop_passive',
+              $section = 'selected_orders',
+              $text = 'GUNPIRE: Stop Passive Logistics',
+              $icon = 'order_tradeperform',
+              $callback = LMP_StopPassiveAction,
+            ]"/>
+          </do_if>
+        </do_if>
+        <do_else>
+          <signal_cue_instantly cue="md.Interact_Menu_API.Add_Action" param="table[
+            $id = 'gunpire_start_passive',
+            $section = 'selected_orders',
+            $text = 'GUNPIRE: Start Passive Logistics',
+            $icon = 'order_tradeperform',
+            $callback = LMP_StartPassiveAction,
+          ]"/>
+        </do_else>
+      </actions>
+    </cue>
+
+    <!-- GT pattern: AIScript signals the galaxy; MD responds without polling
+         ships that are not explicitly running the LMP_Passive default order. -->
+    <cue name="LMP_PassiveTick" instantiate="true">
+      <conditions>
+        <event_object_signalled object="player.galaxy" param="'LMP_Passive_Tick'"/>
+      </conditions>
+      <actions>
+        <set_value name="$ship" exact="@event.param2"/>
+        <do_if value="not $ship? or not $ship.exists or not $ship.defaultorder? or $ship.defaultorder.id != 'LMP_Passive'">
+          <return/>
+        </do_if>
+        <do_if value="not global.$LMP_Ships? or not global.$LMP_Ships.{$ship}? or global.$LMP_Ships.{$ship}.$role != 'PASSIVE'">
+          <return/>
+        </do_if>
+        <!-- Recheck only an in-flight save recovery, on the already
+             scheduled passive ship tick; no new fleet-wide polling. -->
+        <run_actions ref="md.LMP_Recovery.LMP_AuditLoadedTrip" result="$audited">
+          <param name="ship" value="$ship"/>
+        </run_actions>
+        <!-- If an earlier delivery-completed event arrived before
+             the order queue went empty, reconcile on this existing tick.
+             No extra fleet polling or assumed successful deliveries. -->
+        <run_actions ref="md.LMP_Recovery.LMP_ReconcileDeliveryTail" result="$tailDone">
+          <param name="ship" value="$ship"/>
+        </run_actions>
+        <!-- A verified completed BUY-only failure may become a stranded
+             delivery after the original reservation and cargo agree. -->
+        <run_actions ref="md.LMP_Recovery.LMP_RecheckIncompletePair" result="$pairChecked">
+          <param name="ship" value="$ship"/>
+        </run_actions>
+        <!-- Retry only a fully verified stranded shipment. This existing
+             PASSIVE tick provides the retry cadence; no fleet polling. -->
+        <run_actions ref="md.LMP_Recovery.LMP_ResumeStrandedDelivery" result="$resumed">
+          <param name="ship" value="$ship"/>
+        </run_actions>
+        <do_if value="global.$LMP_Ships.{$ship}.$stopRequested? and global.$LMP_Ships.{$ship}.$stopRequested">
+          <!-- Retry after load or delayed order completion. This never
+               cancels a queued trade or releases occupied cargo. -->
+          <run_actions ref="md.LMP_ShipRegistry.LMP_FinalizePassiveStop" result="$released">
+            <param name="ship" value="$ship"/>
+          </run_actions>
+          <return/>
+        </do_if>
+        <run_actions ref="md.LMP_Dispatcher.LMP_DispatchOne" result="$started">
+          <param name="ship" value="$ship"/>
+        </run_actions>
+      </actions>
+    </cue>
+
+    <cue name="LMP_PassiveStatusAction" instantiate="true" namespace="this">
+      <conditions><event_cue_signalled/></conditions>
+      <actions>
+        <set_value name="$ship" exact="@event.param.$object"/>
+        <do_if value="not $ship? or not $ship.exists or not global.$LMP_Ships? or not global.$LMP_Ships.{$ship}? or global.$LMP_Ships.{$ship}.$role != 'PASSIVE'">
+          <return/>
+        </do_if>
+        <set_value name="$entry" exact="global.$LMP_Ships.{$ship}"/>
+        <set_value name="$status" exact="$entry.$state"/>
+        <set_value name="$job" exact="if $entry.$job? and $entry.$job != null then $entry.$job else 'none'"/>
+        <set_value name="$orders" exact="if $ship.tradeorders? then $ship.tradeorders.count else 0"/>
+        <set_value name="$hold" exact="if $ship.cargo.list? then $ship.cargo.list.count else 0"/>
+        <show_notification text="'LMP PASSIVE ' + $ship.idcode + ': ' + $status + '; job=' + $job + '; trade orders=' + $orders + '; cargo types=' + $hold" timeout="10s"/>
+        <reset_cue cue="this"/>
+      </actions>
+    </cue>
+
+    <cue name="LMP_StartPassiveAction" instantiate="true" namespace="this">
+      <conditions><event_cue_signalled/></conditions>
+      <actions>
+        <set_value name="$ship" exact="@event.param.$object"/>
+        <run_actions ref="md.LMP_ShipRegistry.LMP_StartPassiveShip" result="$started">
+          <param name="ship" value="$ship"/>
+        </run_actions>
+        <do_if value="$started">
+          <show_notification text="'GUNPIRE: Passive logistics enabled'" timeout="4s"/>
+        </do_if>
+        <do_else>
+          <show_notification text="'GUNPIRE: Cannot enroll ship; must be idle and empty'" timeout="4s"/>
+        </do_else>
+        <reset_cue cue="this"/>
+      </actions>
+    </cue>
+
+    <cue name="LMP_StopPassiveAction" instantiate="true" namespace="this">
+      <conditions><event_cue_signalled/></conditions>
+      <actions>
+        <set_value name="$ship" exact="@event.param.$object"/>
+        <run_actions ref="md.LMP_ShipRegistry.LMP_StopPassiveShip" result="$stopped">
+          <param name="ship" value="$ship"/>
+        </run_actions>
+        <do_if value="$stopped">
+          <show_notification text="'GUNPIRE: Passive logistics will stop after current trip'" timeout="4s"/>
+        </do_if>
+        <reset_cue cue="this"/>
+      </actions>
+    </cue>
+  </cues>
+</mdscript>

@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mdscript name="LMP_Wing_Jobs" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../refs/x4_scripting_ref/schemas/md.xsd">
+  <cues>
+    <!-- Low-frequency, signal-driven companion-trade accounting. Do not
+         infer order completion from this signal: GT/X4 may later cancel
+         or fail an individual purchase/delivery. Ship orders are native. -->
+    <cue name="LMP_Wing_JobsQueued" instantiate="true">
+      <conditions>
+        <event_object_signalled object="player.galaxy" param="'LMP_Wing_SubtradeQueued'"/>
+      </conditions>
+      <actions>
+        <set_value name="$data" exact="event.param2"/>
+        <do_if value="not $data? or not $data.$Commander? or not $data.$Ship? or not $data.$Ship.exists or not $data.$Ware? or not $data.$Amount? or $data.$Amount le 0">
+          <return/>
+        </do_if>
+        <set_value name="$wc" exact="$data.$Commander"/>
+        <set_value name="$ship" exact="$data.$Ship"/>
+        <!-- The AI worker already verified membership before issuing
+             orders. By this event the ship may have detached to trade,
+             so do not require its commander pointer still to match. -->
+        <do_if value="not $wc.exists or not global.$LMP_Wings? or not global.$LMP_Wings.{$wc}? or not $ship.isplayerowned">
+          <return/>
+        </do_if>
+        <do_if value="not global.$LMP_WingLoads?">
+          <set_value name="global.$LMP_WingLoads" exact="table[]"/>
+        </do_if>
+        <do_if value="not global.$LMP_WingLoads.{$ship}?">
+          <set_value name="global.$LMP_WingLoads.{$ship}" exact="table[]"/>
+        </do_if>
+        <!-- Track assigned ships under their ORIGINAL wing commander.
+             A loaded member must not disappear from the completion gate
+             simply because its fleet assignment later changes. -->
+        <do_if value="not global.$LMP_Wings.{$wc}.$pendingMembers?">
+          <set_value name="global.$LMP_Wings.{$wc}.$pendingMembers" exact="table[]"/>
+        </do_if>
+        <set_value name="global.$LMP_Wings.{$wc}.$pendingMembers.{$ship}" exact="true"/>
+        <set_value name="global.$LMP_WingLoads.{$ship}.$commander" exact="$wc"/>
+        <set_value name="global.$LMP_WingLoads.{$ship}.$ware" exact="$data.$Ware"/>
+        <set_value name="global.$LMP_WingLoads.{$ship}.$amount" exact="$data.$Amount"/>
+        <set_value name="global.$LMP_WingLoads.{$ship}.$buyStation" exact="$data.$BuyStation"/>
+        <set_value name="global.$LMP_WingLoads.{$ship}.$sellStation" exact="$data.$SellStation"/>
+        <set_value name="global.$LMP_WingLoads.{$ship}.$queuedAt" exact="player.age"/>
+        <set_value name="global.$LMP_WingLoads.{$ship}.$status" exact="'ORDERS_REQUESTED'"/>
+        <do_if value="not global.$LMP_Wings.{$wc}.$totalRequestedUnits?">
+          <set_value name="global.$LMP_Wings.{$wc}.$totalRequestedUnits" exact="0"/>
+        </do_if>
+        <set_value name="global.$LMP_Wings.{$wc}.$totalRequestedUnits" exact="global.$LMP_Wings.{$wc}.$totalRequestedUnits + $data.$Amount"/>
+        <debug_text text="'[GUNPIRE][WING][LEDGER] wc=' + $wc.idcode + ' ship=' + $ship.idcode + ' requested=' + $data.$Amount" chance="100"/>
+      </actions>
+    </cue>
+    <!-- Snapshot only on player request. One pass over the registered wing,
+         no background scanning or fleet-wide polling. -->
+    <library name="LMP_GetWingJobSnapshot" purpose="run_actions">
+      <params><param name="commander"/></params>
+      <actions>
+        <do_if value="not $commander? or not $commander.exists or not global.$LMP_Wings? or not global.$LMP_Wings.{$commander}?">
+          <return value="false"/>
+        </do_if>
+        <set_value name="$queued" exact="0"/>
+        <set_value name="$loaded" exact="0"/>
+        <set_value name="$clean" exact="0"/>
+        <set_value name="$missing" exact="0"/>
+        <do_if value="global.$LMP_Wings.{$commander}.$pendingMembers?">
+          <do_for_each name="$ship" in="global.$LMP_Wings.{$commander}.$pendingMembers.keys">
+            <do_if value="not global.$LMP_WingLoads? or not global.$LMP_WingLoads.{$ship}? or global.$LMP_WingLoads.{$ship}.$commander != $commander">
+              <continue/>
+            </do_if>
+            <do_if value="not $ship.exists">
+              <set_value name="$missing" exact="$missing + 1"/>
+            </do_if>
+            <do_elseif value="$ship.tradeorders? and $ship.tradeorders.count gt 0">
+              <set_value name="$queued" exact="$queued + 1"/>
+            </do_elseif>
+            <do_elseif value="$ship.cargo.list? and $ship.cargo.list.count gt 0">
+              <set_value name="$loaded" exact="$loaded + 1"/>
+            </do_elseif>
+            <do_else>
+              <set_value name="$clean" exact="$clean + 1"/>
+            </do_else>
+          </do_for_each>
+        </do_if>
+        <return value="table[$queuedShips = $queued, $loadedShips = $loaded, $idleShips = $clean, $missingShips = $missing]"/>
+      </actions>
+    </library>
+  </cues>
+</mdscript>
