@@ -129,6 +129,74 @@
       </actions>
     </library>
 
+    <!-- Retry ONLY an already-purchased PASSIVE shipment with no active
+         trade orders. Source: X4 cargo.{$Ware}.count (rml_deliver_wares
+         to_player_object) and existing LMP_QueuePairedTrade's
+         create_trade_order signature. Fail closed on all ambiguity.
+         No GT takeover, cargo mutation, reservation release or order flush. -->
+    <library name="LMP_ResumeStrandedDelivery" purpose="run_actions">
+      <params><param name="ship"/></params>
+      <actions>
+        <do_if value="not $ship? or not $ship.exists or not $ship.isplayerowned or not global.$LMP_Ships? or not global.$LMP_Ships.{$ship}?">
+          <return value="false"/>
+        </do_if>
+        <set_value name="$entry" exact="global.$LMP_Ships.{$ship}"/>
+        <do_if value="$entry.$role != 'PASSIVE' or $entry.$state != 'STRANDED_CARGO_RECONCILE' or not $entry.$job? or $entry.$job == null">
+          <return value="false"/>
+        </do_if>
+        <!-- Never recover a ship that another trader controller owns. -->
+        <run_actions ref="md.GUNPIRE_Core.GUNPIRE_IsGTManagedShip" result="$gt">
+          <param name="ship" value="$ship"/>
+        </run_actions>
+        <do_if value="$gt">
+          <return value="false"/>
+        </do_if>
+        <do_if value="not $entry.$reservationKey? or not global.$LMP_Reservations? or not global.$LMP_Reservations.{$entry.$reservationKey}?">
+          <return value="false"/>
+        </do_if>
+        <set_value name="$reservation" exact="global.$LMP_Reservations.{$entry.$reservationKey}"/>
+        <do_if value="$reservation.$ship != $ship or not $reservation.$site? or not $reservation.$site.exists or not $reservation.$ware?">
+          <return value="false"/>
+        </do_if>
+        <do_if value="not $entry.$requestedQty? or not $entry.$purchasedQty? or not $entry.$deliveredQty?">
+          <return value="false"/>
+        </do_if>
+        <!-- Only zero-previous-delivery cases qualify. The more complex
+             multi-fill reconciliation remains quarantined. -->
+        <do_if value="$entry.$purchasedQty le 0 or $entry.$deliveredQty != 0 or $entry.$purchasedQty gt $entry.$requestedQty or $entry.$requestedQty != $reservation.$qty">
+          <return value="false"/>
+        </do_if>
+        <do_if value="not $ship.cargo.list? or $ship.cargo.list.count != 1 or $ship.cargo.{$reservation.$ware}.count != $entry.$purchasedQty">
+          <return value="false"/>
+        </do_if>
+        <do_if value="$ship.tradeorders? and $ship.tradeorders.count gt 0">
+          <return value="false"/>
+        </do_if>
+        <!-- Retry only the original target offer. No inferred destination,
+             silent seller substitution, or new ware selection. -->
+        <do_if value="not $entry.$targetOffer? or not $entry.$targetOffer.exists or not $entry.$targetOffer.available">
+          <return value="false"/>
+        </do_if>
+        <do_if value="$entry.$targetOffer.ware != $reservation.$ware or $entry.$targetOffer.amount lt $entry.$purchasedQty">
+          <return value="false"/>
+        </do_if>
+        <create_trade_order object="$ship" tradeoffer="$entry.$targetOffer" amount="$entry.$purchasedQty" name="$recoveryOrder"/>
+        <do_if value="not $recoveryOrder?">
+          <return value="false"/>
+        </do_if>
+        <set_value name="global.$LMP_Ships.{$ship}.$deliverOrder" exact="$recoveryOrder"/>
+        <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'DELIVERING'"/>
+        <!-- Keep stopRequested true so a successfully reconciled shipment
+             releases its PASSIVE ship instead of silently starting a job. -->
+        <set_value name="global.$LMP_Ships.{$ship}.$stopRequested" exact="true"/>
+        <run_actions ref="md.GUNPIRE_Core.GUNPIRE_Log">
+          <param name="component" value="'RECOVERY'"/>
+          <param name="message" value="'Resumed original delivery of ' + $entry.$purchasedQty + ' units for ' + $ship.idcode"/>
+        </run_actions>
+        <return value="true"/>
+      </actions>
+    </library>
+
     <!-- X4 rml_deliver_wares.xml and jkeoc recovery workflow use a
          completed trade deal's transferredamount as the actual quantity.
          Matched partials are legitimate, but purchased and delivered
