@@ -7,6 +7,8 @@
         <!-- Preserve in-flight reservations and job state; never mark an
              ambiguous loaded order free to replan. -->
         <do_if value="global.$LMP_Ships?">
+          <!-- Do not remove entries while iterating this live table. -->
+          <set_value name="$pendingStops" exact="[]"/>
           <do_all exact="global.$LMP_Ships.keys.count" counter="$i">
             <set_value name="$ship" exact="global.$LMP_Ships.keys.{$i}"/>
             <do_if value="not $ship.exists">
@@ -18,11 +20,14 @@
             <do_elseif value="global.$LMP_Ships.{$ship}.$role == 'PASSIVE' and global.$LMP_Ships.{$ship}.$stopRequested? and global.$LMP_Ships.{$ship}.$stopRequested">
               <!-- A save can land between default-order cancellation and
                    registry release. Recover that exact stop on load. -->
-              <run_actions ref="md.LMP_ShipRegistry.LMP_FinalizePassiveStop" result="$released">
-                <param name="ship" value="$ship"/>
-              </run_actions>
+              <append_to_list name="$pendingStops" exact="$ship"/>
             </do_elseif>
           </do_all>
+          <do_for_each name="$stopShip" in="$pendingStops">
+            <run_actions ref="md.LMP_ShipRegistry.LMP_FinalizePassiveStop" result="$released">
+              <param name="ship" value="$stopShip"/>
+            </run_actions>
+          </do_for_each>
         </do_if>
       </actions>
     </cue>
