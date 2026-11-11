@@ -15,6 +15,13 @@
             <do_elseif value="global.$LMP_Ships.{$ship}.$job? and global.$LMP_Ships.{$ship}.$job != null">
               <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'RECONCILE_ON_LOAD'"/>
             </do_elseif>
+            <do_elseif value="global.$LMP_Ships.{$ship}.$role == 'PASSIVE' and global.$LMP_Ships.{$ship}.$stopRequested? and global.$LMP_Ships.{$ship}.$stopRequested">
+              <!-- A save can land between default-order cancellation and
+                   registry release. Recover that exact stop on load. -->
+              <run_actions ref="md.LMP_ShipRegistry.LMP_FinalizePassiveStop" result="$released">
+                <param name="ship" value="$ship"/>
+              </run_actions>
+            </do_elseif>
           </do_all>
         </do_if>
       </actions>
