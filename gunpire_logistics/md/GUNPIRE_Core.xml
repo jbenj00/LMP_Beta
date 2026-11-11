@@ -41,9 +41,31 @@
         <param name="ship"/>
       </params>
       <actions>
-        <!-- Trade cargo only; ignore ammo/deployables/equipment. Exact check deferred to verified API. -->
-        <do_if value="$ship? and $ship.exists">
-          <return value="true"/> <!-- Placeholder until verified cargo query -->
+        <!-- GT source: md/gt_trading_signals.xml checks ship.cargo.list.count.
+             No positive eligibility until cargo is known empty. -->
+        <do_if value="not $ship? or not $ship.exists">
+          <return value="false"/>
+        </do_if>
+        <return value="$ship.cargo.list? and $ship.cargo.list.count == 0"/>
+      </actions>
+    </library>
+
+    <!-- Mirrors GT 1.0.4 MK4 default-order and Assist/$baseorder checks.
+         Source: aiscripts/order.trade.galaxytradermk4.xml near line 479. -->
+    <library name="GUNPIRE_IsGTManagedShip" purpose="run_actions">
+      <params>
+        <param name="ship"/>
+      </params>
+      <actions>
+        <do_if value="not $ship? or not $ship.exists or not $ship.defaultorder?">
+          <return value="false"/>
+        </do_if>
+        <set_value name="$order" exact="$ship.defaultorder"/>
+        <do_if value="$order.id == 'GalaxyTraderMK3' or $order.id == 'GalaxyTraderMK4Supply'">
+          <return value="true"/>
+        </do_if>
+        <do_if value="$order.id == 'Assist' and $order.$baseorder? and ($order.$baseorder.id == 'GalaxyTraderMK3' or $order.$baseorder.id == 'GalaxyTraderMK4Supply')">
+          <return value="true"/>
         </do_if>
         <return value="false"/>
       </actions>
