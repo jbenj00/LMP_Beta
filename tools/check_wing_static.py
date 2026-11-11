@@ -59,6 +59,8 @@ assert "GUNPIRE_IsGTManagedShip" in member_xml
 assert "'WING_MEMBER'" in member_xml
 assert "$member.cargo.list.count gt 0" in member_xml
 assert "$member.tradeorders.count gt 0" in member_xml
+assert "$member.defaultorder.id != 'Assist'" in member_xml, "Native escort Assist must remain eligible"
+assert "GUNPIRE_IsGTManagedShip" in member_xml, "GT-backed Assist must remain excluded"
 assert 'name="global.$LMP_Ships.{$member}.$wingCommander" exact="$commander"' in member_xml
 for unsafe in ("create_order", "cancel_order", "create_trade_order", "remove_value"):
     assert not list(member_enroll.iter(unsafe)), "Enrollment cannot change ship orders"
@@ -68,6 +70,7 @@ assert "$role != 'WING_MEMBER'" in member_release_xml
 assert "$wingCommander != $commander" in member_release_xml
 assert "$member.cargo.list.count gt 0" in member_release_xml
 assert "$member.tradeorders.count gt 0" in member_release_xml
+assert "$member.defaultorder.id != 'Assist'" in member_release_xml, "Safe release must preserve native Assist"
 assert len(list(member_release.iter("remove_value"))) == 1
 for unsafe in ("create_order", "cancel_order", "create_trade_order"):
     assert not list(member_release.iter(unsafe)), "Unenrollment cannot alter work"
