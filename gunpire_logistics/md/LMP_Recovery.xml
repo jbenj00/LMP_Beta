@@ -64,6 +64,8 @@
         <set_value name="global.$LMP_Ships.{$ship}.$job" exact="null"/>
         <set_value name="global.$LMP_Ships.{$ship}.$buyOrder" exact="null"/>
         <set_value name="global.$LMP_Ships.{$ship}.$deliverOrder" exact="null"/>
+        <set_value name="global.$LMP_Ships.{$ship}.$sourceOffer" exact="null"/>
+        <set_value name="global.$LMP_Ships.{$ship}.$targetOffer" exact="null"/>
         <return value="true"/>
       </actions>
     </library>
@@ -106,6 +108,8 @@
         <set_value name="global.$LMP_Ships.{$ship}.$job" exact="null"/>
         <set_value name="global.$LMP_Ships.{$ship}.$buyOrder" exact="null"/>
         <set_value name="global.$LMP_Ships.{$ship}.$deliverOrder" exact="null"/>
+        <set_value name="global.$LMP_Ships.{$ship}.$sourceOffer" exact="null"/>
+        <set_value name="global.$LMP_Ships.{$ship}.$targetOffer" exact="null"/>
         <!-- Stop takes precedence over another dispatch. Only our own
              PASSIVE default is cancelled; no queue/cargo flush occurs. -->
         <do_if value="global.$LMP_Ships.{$ship}.$stopRequested? and global.$LMP_Ships.{$ship}.$stopRequested">
@@ -124,27 +128,28 @@
     <cue name="LMP_OnTradeCancelled" instantiate="true">
       <conditions><event_trade_cancelled space="player.galaxy"/></conditions>
       <actions>
-        <!-- Only act on an order we actually own. Unrelated vanilla and
-             modded trade cancellations must never alter LMP ship state. -->
-        <do_if value="not event.param2? or not event.param2.object?">
+        <!-- X4 common.xsd: trade-cancelled exposes event.param = tradeoffer,
+             NOT event.param2 = tradeorder. It cannot uniquely identify a
+             ship. Conservatively quarantine EVERY in-flight LMP job which
+             references the cancelled offer, and never alter other traders. -->
+        <do_if value="not event.param? or not global.$LMP_Ships?">
           <return/>
         </do_if>
-        <set_value name="$order" exact="event.param2"/>
-        <set_value name="$ship" exact="$order.object"/>
-        <do_if value="not global.$LMP_Ships? or not global.$LMP_Ships.{$ship}?">
-          <return/>
-        </do_if>
-        <do_if value="$order != global.$LMP_Ships.{$ship}.$buyOrder and $order != global.$LMP_Ships.{$ship}.$deliverOrder">
-          <return/>
-        </do_if>
-        <!-- Preserve cargo, queued work and reservations. Never turn an
-             aborted buy or failed delivery into a successful trip. -->
-        <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'TRADE_CANCELLED_RECONCILE'"/>
-        <set_value name="global.$LMP_Ships.{$ship}.$stopRequested" exact="true"/>
-        <run_actions ref="md.GUNPIRE_Core.GUNPIRE_Log">
-          <param name="component" value="'RECOVERY'"/>
-          <param name="message" value="'GUNPIRE trade cancelled for ' + $ship.idcode + '; ship quarantined pending reconciliation'"/>
-        </run_actions>
+        <set_value name="$cancelledOffer" exact="event.param"/>
+        <do_for_each name="$ship" in="global.$LMP_Ships.keys">
+          <do_if value="not $ship? or not $ship.exists or not global.$LMP_Ships.{$ship}.$job? or global.$LMP_Ships.{$ship}.$job == null">
+            <continue/>
+          </do_if>
+          <do_if value="$cancelledOffer != global.$LMP_Ships.{$ship}.$sourceOffer and $cancelledOffer != global.$LMP_Ships.{$ship}.$targetOffer">
+            <continue/>
+          </do_if>
+          <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'TRADE_CANCELLED_RECONCILE'"/>
+          <set_value name="global.$LMP_Ships.{$ship}.$stopRequested" exact="true"/>
+          <run_actions ref="md.GUNPIRE_Core.GUNPIRE_Log">
+            <param name="component" value="'RECOVERY'"/>
+            <param name="message" value="'Cancelled offer matches active GUNPIRE job on ' + $ship.idcode + '; preserving cargo and reservation for reconciliation'"/>
+          </run_actions>
+        </do_for_each>
       </actions>
     </cue>
   </cues>
