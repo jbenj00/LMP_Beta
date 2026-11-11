@@ -11,6 +11,7 @@ on:
       - 'gunpire_logistics/md/LMP_ContextMenu.xml'
       - 'gunpire_logistics/md/LMP_Recovery.xml'
       - 'gunpire_logistics/md/LMP_TradeCycle.xml'
+      - 'gunpire_logistics/md/LMP_Reservations.xml'
       - 'tools/check_gt_wing_patch.py'
       - 'gunpire_logistics/aiscripts/lib.lmp.wing.extend.xml'
       - 'gunpire_logistics/aiscripts/lib.lmp.wing.busy.xml'
@@ -48,6 +49,7 @@ jobs:
           files += [Path('gunpire_logistics/md') / name for name in (
               'LMP_ShipRegistry.xml', 'LMP_ContextMenu.xml',
               'LMP_Recovery.xml', 'LMP_TradeCycle.xml',
+              'LMP_Reservations.xml',
           )]
           for filename in files:
               doc = etree.parse(str(filename))
