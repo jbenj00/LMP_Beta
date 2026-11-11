@@ -109,6 +109,16 @@
         <set_value name="$assigned" exact="$assigned + $qty"/>
         <set_value name="$remaining" exact="$remaining - $qty"/>
         <set_value name="$shipsUsed" exact="$shipsUsed + 1"/>
+        <!-- Notify MD only after both native trade orders were requested.
+             MD records accounting; it never replaces the underlying orders. -->
+        <signal_objects object="player.galaxy" param="'LMP_Wing_SubtradeQueued'" param2="table[
+          $Commander = $commander,
+          $Ship = $ship,
+          $Ware = $ware,
+          $Amount = $qty,
+          $BuyStation = $buyStation,
+          $SellStation = $sellStation
+        ]"/>
         <debug_text text="'[GUNPIRE][WING][EXEC] WC=' + $commander.idcode + ' ship=' + $ship.idcode + ' qty=' + $qty + ' ware=' + $ware.id" chance="100"/>
       </do_for_each>
       <return value="table[$Assigned = $assigned, $Ships = $shipsUsed, $Remaining = $remaining]"/>
