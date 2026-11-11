@@ -51,6 +51,31 @@ assert "$home.isclass.sector" in home_xml and "$home.isclass.station" in home_xm
 assert "LMP_WING_CONFIG_ONLY" in home_xml and "$role != 'WING'" in home_xml
 for node in home.iter():
     assert node.tag not in ("create_order", "cancel_order", "create_trade_order", "remove_value"), "Home config cannot mutate ship work"
+member_enroll = wing_library("LMP_EnrollDedicatedWingMember")
+member_xml = ET.tostring(member_enroll, encoding="unicode")
+assert "$member.commander != $commander" in member_xml
+assert "LMP_WING_CONFIG_ONLY" in member_xml
+assert "GUNPIRE_IsGTManagedShip" in member_xml
+assert "'WING_MEMBER'" in member_xml
+assert "$member.cargo.list.count gt 0" in member_xml
+assert "$member.tradeorders.count gt 0" in member_xml
+assert 'name="global.$LMP_Ships.{$member}.$wingCommander" exact="$commander"' in member_xml
+for unsafe in ("create_order", "cancel_order", "create_trade_order", "remove_value"):
+    assert not list(member_enroll.iter(unsafe)), "Enrollment cannot change ship orders"
+member_release = wing_library("LMP_UnenrollDedicatedWingMember")
+member_release_xml = ET.tostring(member_release, encoding="unicode")
+assert "$role != 'WING_MEMBER'" in member_release_xml
+assert "$wingCommander != $commander" in member_release_xml
+assert "$member.cargo.list.count gt 0" in member_release_xml
+assert "$member.tradeorders.count gt 0" in member_release_xml
+assert len(list(member_release.iter("remove_value"))) == 1
+for unsafe in ("create_order", "cancel_order", "create_trade_order"):
+    assert not list(member_release.iter(unsafe)), "Unenrollment cannot alter work"
+capacity = wing_library("LMP_GetWingCapacity")
+capacity_xml = ET.tostring(capacity, encoding="unicode")
+assert "global.$LMP_Wings.{$commander}.$state == 'LMP_WING_CONFIG_ONLY'" in capacity_xml
+assert "$role != 'WING_MEMBER'" in capacity_xml
+assert "$wingCommander != $commander" in capacity_xml
 release = wing_library("LMP_UnregisterDedicatedWing")
 release_xml = ET.tostring(release, encoding="unicode")
 assert "LMP_WING_CONFIG_ONLY" in release_xml
@@ -60,6 +85,8 @@ assert "$commander.tradeorders.count gt 0" in release_xml
 assert "$commander.orders.count gt 0" in release_xml
 assert "$commander.defaultorder?" in release_xml
 assert len(list(release.iter("remove_value"))) == 2
+assert "global.$LMP_Ships.keys" in release_xml, "Commander release must inspect detached members"
+assert "global.$LMP_Ships.{$enrolledShip}.$wingCommander == $commander" in release_xml
 for unsafe in ("cancel_order", "create_order", "create_trade_order"):
     assert not list(release.iter(unsafe)), "Releasing config must not affect orders"
 commands = ET.parse(ROOT / "LMP_Wing_Commands.xml").getroot()
