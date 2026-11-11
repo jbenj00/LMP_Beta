@@ -52,13 +52,19 @@
         <set_value name="global.$LMP_Ships.{$ship}.$job" exact="null"/>
         <set_value name="global.$LMP_Ships.{$ship}.$buyOrder" exact="null"/>
         <set_value name="global.$LMP_Ships.{$ship}.$deliverOrder" exact="null"/>
-        <!-- Every completed trip re-ranks demand and suppliers from ship's
-             CURRENT position, through the dispatcher and live offer scans. -->
-        <do_if value="not global.$LMP_Ships.{$ship}.$stopRequested? or not global.$LMP_Ships.{$ship}.$stopRequested">
-          <run_actions ref="md.LMP_Dispatcher.LMP_DispatchOne" result="$next">
+        <!-- Stop takes precedence over another dispatch. Only our own
+             PASSIVE default is cancelled; no queue/cargo flush occurs. -->
+        <do_if value="global.$LMP_Ships.{$ship}.$stopRequested? and global.$LMP_Ships.{$ship}.$stopRequested">
+          <run_actions ref="md.LMP_ShipRegistry.LMP_FinalizePassiveStop" result="$released">
             <param name="ship" value="$ship"/>
           </run_actions>
+          <return/>
         </do_if>
+        <!-- Every completed trip re-ranks current demand from the ship's
+             position, using fresh offers and reservations. -->
+        <run_actions ref="md.LMP_Dispatcher.LMP_DispatchOne" result="$next">
+          <param name="ship" value="$ship"/>
+        </run_actions>
       </actions>
     </cue>
     <cue name="LMP_OnTradeCancelled" instantiate="true">
