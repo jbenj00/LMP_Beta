@@ -88,5 +88,23 @@ assert "LMP_VerifyActualDelivery" in on_trade_xml and "LMP_VerifyActualDelivery"
 assert "QUANTITY_RECONCILE" in on_trade_xml and "QUANTITY_RECONCILE" in tail_xml
 assert "QUANTITY_RECONCILE" in load_xml, "Save-load must preserve unresolved quantities"
 
+# Save/load recovery is deliberately non-destructive and distinguishes
+# stranded cargo from missing orders. Neither is a completed delivery.
+audit = named(recovery, "library", "LMP_AuditLoadedTrip")
+audit_xml = ET.tostring(audit, encoding="unicode")
+assert "RECONCILE_ON_LOAD" in audit_xml
+assert "STRANDED_CARGO_RECONCILE" in audit_xml
+assert "MISSING_ORDER_RECONCILE" in audit_xml
+assert "CARGO_UNKNOWN_RECONCILE" in audit_xml
+assert "$ship.cargo.list.count gt 0" in audit_xml
+assert "$ship.tradeorders.count gt 0" in audit_xml
+assert "$stopRequested" in audit_xml
+assert not list(audit.iter("create_trade_order"))
+assert not list(audit.iter("cancel_order"))
+assert not list(audit.iter("remove_value"))
+assert not any("LMP_Reservations.LMP_Release" in e.attrib.get("ref","") for e in audit.iter("run_actions"))
+assert "LMP_AuditLoadedTrip" in load_xml
+assert "LMP_AuditLoadedTrip" in ET.tostring(tick, encoding="unicode")
+assert "STRANDED_CARGO_RECONCILE" in load_xml and "MISSING_ORDER_RECONCILE" in load_xml
 print("PASS: PASSIVE stop guards, completion and retry hooks are present")
 print("NOTE: structural tests do not prove X4 runtime behavior")
