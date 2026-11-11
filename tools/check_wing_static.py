@@ -82,6 +82,8 @@ assert "global.$LMP_Ships.{$commander}.$role != 'WING'" in capacity_xml, "Dedica
 assert "$ship.orders.count gt 0" in capacity_xml, "Busy ships cannot be allocated"
 assert "$ship.cargo.list.count gt 0" in capacity_xml, "Loaded ships cannot be treated as free"
 assert "$ship.defaultorder.id != 'Assist'" in capacity_xml, "Preserve native Assist while excluding other defaults"
+assert 'global.$LMP_Wings.{$commander}.$state != \'LMP_WING_CONFIG_ONLY\'' in capacity_xml
+assert capacity_xml.index('value="$usable"') < capacity_xml.rindex('name="$totalCapacity" exact="$totalCapacity + $capacity"'), "Dedicated capacity totals must follow eligibility"
 assert "$ship == $commander and $ship.defaultorder?" in capacity_xml, "Do not seize commander with a default order"
 assert "$wingCommander != $commander" in capacity_xml
 release = wing_library("LMP_UnregisterDedicatedWing")
