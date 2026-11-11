@@ -20,6 +20,17 @@
         <set_value name="$snap.$commander" exact="if $ship.commander? then $ship.commander else null"/>
         <set_value name="$snap.$home" exact="if $ship.home? then $ship.home else null"/>
         <set_value name="$snap.$defaultOrderId" exact="if $ship.defaultorder? then $ship.defaultorder.id else null"/>
+        <!-- Read-only GT progression baseline. GT 1.0.4 stores pilot XP
+             and level in global.$GT_Pilots, keyed by ship.pilot.
+             Capturing these values does NOT constitute restoration. -->
+        <set_value name="$snap.$pilot" exact="if $ship.pilot? then $ship.pilot else null"/>
+        <set_value name="$snap.$gtRegistered" exact="global.$GT_Ships? and global.$GT_Ships.{$ship}?"/>
+        <do_if value="$ship.pilot? and global.$GT_Pilots? and global.$GT_Pilots.{$ship.pilot}?">
+          <set_value name="$pilotData" exact="global.$GT_Pilots.{$ship.pilot}"/>
+          <set_value name="$snap.$gtXP" exact="if $pilotData.$XP? then $pilotData.$XP else null"/>
+          <set_value name="$snap.$gtLevel" exact="if $pilotData.$Level? then $pilotData.$Level else null"/>
+          <set_value name="$snap.$gtPilotShip" exact="if $pilotData.$Ship? then $pilotData.$Ship else null"/>
+        </do_if>
         <set_value name="$snap.$captured" exact="player.age"/>
         <set_value name="global.$LMP_Ships.{$ship}.$snapshot" exact="$snap"/>
         <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'SNAPSHOTTED'"/>
