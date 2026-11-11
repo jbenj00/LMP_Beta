@@ -29,6 +29,22 @@
           </run_actions>
           <return value="false"/>
         </do_if>
+        <!-- PASSIVE belongs to the construction fleet only. A registered
+             LMP MK3 wing commander or direct wing member may not be enrolled
+             into PASSIVE, even when idle and cargo-empty. No reassignment. -->
+        <do_if value="$role == 'PASSIVE' and global.$LMP_Wings?">
+          <do_if value="global.$LMP_Wings.{$ship}?">
+            <return value="false"/>
+          </do_if>
+          <do_if value="$ship.commander? and global.$LMP_Wings.{$ship.commander}?">
+            <return value="false"/>
+          </do_if>
+        </do_if>
+        <!-- Existing role allocations are immutable through enrollment.
+             Changing roles requires a clean release before re-enrollment. -->
+        <do_if value="global.$LMP_Ships? and global.$LMP_Ships.{$ship}? and global.$LMP_Ships.{$ship}.$role != $role">
+          <return value="false"/>
+        </do_if>
         <!-- Feature gate: max controlled ships -->
         <run_actions ref="md.GUNPIRE_Config.GUNPIRE_MaxControlledShips" result="$max"/>
         <do_if value="global.$LMP_Ships.keys.count ge $max and not global.$LMP_Ships.{$ship}?">
@@ -59,6 +75,11 @@
       <params><param name="ship"/></params>
       <actions>
         <do_if value="not $ship? or not $ship.exists or $ship.owner != faction.player">
+          <return value="false"/>
+        </do_if>
+        <!-- Cross-registry gate before creating the PASSIVE default order;
+             failed menu actions cannot steal a registered wing member. -->
+        <do_if value="global.$LMP_Wings? and (global.$LMP_Wings.{$ship}? or ($ship.commander? and global.$LMP_Wings.{$ship.commander}?))">
           <return value="false"/>
         </do_if>
         <!-- Explicit Stop owns this ship until its existing trip is
