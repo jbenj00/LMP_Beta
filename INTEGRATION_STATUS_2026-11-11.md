@@ -25,3 +25,13 @@
 - No in-game compatibility claims.
 
 **This is a source-code increment, not a complete production mod.**
+
+## Continuation: player control and persistent PASSIVE order
+
+- Added `LMP_ContextMenu.xml`: SirNukes/GT-style right-click Start and Stop Passive Logistics actions for a selected player-owned non-GT ship.
+- Added `aiscripts/order.lmp.passive.xml`: native `LMP_Passive` default order and event-driven idle demand retry every 90 seconds.
+- `LMP_StartPassiveShip` now requires the ship to be idle and cargo-empty before it assigns the passive default order; enrollment is valid even with no immediately available trip.
+- Expanded GT ownership protection to the actual 1.0.4 protected order IDs, including MK1 and Assist base orders.
+- Static XML parsing and cross-script call resolution passed locally. X4 schema compilation timed out; runtime and in-game behavior remain untested.
+
+This is a substantial integration increment, but ACTIVE trader handoff, station-demand aging, MK1-style fallback, full recovery and richer UI are not implemented yet.
