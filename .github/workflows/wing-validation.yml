@@ -7,6 +7,7 @@ on:
       - 'gunpire_logistics/md/LMP_Wing*.xml'
       - 'tools/check_wing_static.py'
       - 'tools/check_passive_stop.py'
+      - 'tools/check_lmp_role_isolation.py'
       - 'tools/check_active_safety.py'
       - 'gunpire_logistics/md/LMP_Takeover.xml'
       - 'gunpire_logistics/md/LMP_ShipRegistry.xml'
@@ -34,6 +35,8 @@ jobs:
           python-version: '3.12'
       - name: Parse and enforce non-mutating wing module boundary
         run: python tools/check_wing_static.py
+      - name: Check exclusive LMP fleet role ownership
+        run: python tools/check_lmp_role_isolation.py
       - name: Check PASSIVE stop safety and retry wiring
         run: python tools/check_passive_stop.py
       - name: Check ACTIVE GT takeover safety
