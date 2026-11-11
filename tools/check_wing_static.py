@@ -51,5 +51,20 @@ assert "$home.isclass.sector" in home_xml and "$home.isclass.station" in home_xm
 assert "LMP_WING_CONFIG_ONLY" in home_xml and "$role != 'WING'" in home_xml
 for node in home.iter():
     assert node.tag not in ("create_order", "cancel_order", "create_trade_order", "remove_value"), "Home config cannot mutate ship work"
+release = wing_library("LMP_UnregisterDedicatedWing")
+release_xml = ET.tostring(release, encoding="unicode")
+assert "LMP_WING_CONFIG_ONLY" in release_xml
+assert "$role != 'WING'" in release_xml
+assert "$commander.cargo.list.count gt 0" in release_xml
+assert "$commander.tradeorders.count gt 0" in release_xml
+assert "$commander.orders.count gt 0" in release_xml
+assert "$commander.defaultorder?" in release_xml
+assert len(list(release.iter("remove_value"))) == 2
+for unsafe in ("cancel_order", "create_order", "create_trade_order"):
+    assert not list(release.iter(unsafe)), "Releasing config must not affect orders"
+commands = ET.parse(ROOT / "LMP_Wing_Commands.xml").getroot()
+unreg = [n for n in commands.iter("cue") if n.get("name") == "LMP_Wing_CommandUnregister"]
+assert len(unreg) == 1
+assert "LMP_UnregisterDedicatedWing" in ET.tostring(unreg[0], encoding="unicode")
 print(f"PASS: {len(WING)} parsed wing scripts, {len(libraries)} libraries; no trade/order mutations")
 print("NOTE: This is a static parse / invariant check, not XSD validation or an in-game test.")
