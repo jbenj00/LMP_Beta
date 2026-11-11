@@ -20,6 +20,8 @@ start = xml(library(registry, "LMP_StartPassiveShip"))
 register = xml(library(wing, "LMP_RegisterWing"))
 capacity = xml(library(wing, "LMP_GetWingCapacity"))
 
+assert "$role == 'ACTIVE'" in enroll, "Legacy ACTIVE enrollment must be disabled"
+assert enroll.index("$role == 'ACTIVE'") < enroll.index('name="global.$LMP_Ships.{$ship}"'), "Reject ACTIVE before registry writes"
 assert "$role == 'PASSIVE'" in enroll
 assert "global.$LMP_Wings.{$ship}?" in enroll, "Cannot enroll wing commander as PASSIVE"
 assert "global.$LMP_Wings.{$ship.commander}?" in enroll, "Cannot enroll wing member as PASSIVE"
