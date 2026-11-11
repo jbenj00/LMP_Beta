@@ -120,7 +120,7 @@ assert "STRANDED_CARGO_RECONCILE" in load_xml and "MISSING_ORDER_RECONCILE" in l
 resume = named(recovery, "library", "LMP_ResumeStrandedDelivery")
 resume_xml = ET.tostring(resume, encoding="unicode")
 assert "STRANDED_CARGO_RECONCILE" in resume_xml
-assert "LMP_IsGTManagedShip" in resume_xml
+assert "GUNPIRE_IsGTManagedShip" in resume_xml
 assert "$reservationKey" in resume_xml and "$reservation.$ware" in resume_xml
 assert "$ship.cargo.list.count != 1" in resume_xml
 assert "$ship.cargo.{$reservation.$ware}.count != $entry.$purchasedQty" in resume_xml
