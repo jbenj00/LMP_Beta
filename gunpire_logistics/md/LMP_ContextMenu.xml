@@ -56,6 +56,11 @@
           <return/>
         </do_if>
         <do_if value="global.$LMP_Ships.{$ship}.$stopRequested? and global.$LMP_Ships.{$ship}.$stopRequested">
+          <!-- Retry after load or delayed order completion. This never
+               cancels a queued trade or releases occupied cargo. -->
+          <run_actions ref="md.LMP_ShipRegistry.LMP_FinalizePassiveStop" result="$released">
+            <param name="ship" value="$ship"/>
+          </run_actions>
           <return/>
         </do_if>
         <run_actions ref="md.LMP_Dispatcher.LMP_DispatchOne" result="$started">
