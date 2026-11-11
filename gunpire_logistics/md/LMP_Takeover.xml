@@ -60,7 +60,9 @@
         <do_if value="not $ship? or not $ship.exists or not $ship.isplayerowned or not global.$LMP_Ships? or not global.$LMP_Ships.{$ship}? or global.$LMP_Ships.{$ship}.$role != 'ACTIVE'">
           <return value="false"/>
         </do_if>
-        <run_actions ref="md.GUNPIRE_Core.GUNPIRE_IsGTManagedShip" result="$gt"/>
+        <run_actions ref="md.GUNPIRE_Core.GUNPIRE_IsGTManagedShip" result="$gt">
+          <param name="ship" value="$ship"/>
+        </run_actions>
         <do_if value="not $gt">
           <return value="false"/>
         </do_if>
