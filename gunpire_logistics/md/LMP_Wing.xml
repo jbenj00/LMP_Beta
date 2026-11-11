@@ -6,7 +6,7 @@
          membership is the only supported topology at this stage.
          Evidence: GT 1.0.4 gt_core_system.xml RunCommanderGTReactivationPass
          uses commander.allsubordinates, ship.commander and toplevelcommander.
-         Capacity: GT gt_home_fleet_profile.xml uses container + universal. -->
+         Capacity: GT MK3 uses cargo.capacity.all; per-ware planning\n         uses class-specific capacity plus universal (shared). -->
     <cue name="LMP_Wing_Init" instantiate="true">
       <conditions><event_game_loaded/></conditions>
       <actions>
@@ -63,8 +63,8 @@
         <set_value name="$eligible" exact="[]"/>
         <set_value name="$skipped" exact="[]"/>
         <do_for_each name="$ship" in="$ships">
-          <set_value name="$capacity" exact="$ship.cargo.capacity.container + $ship.cargo.capacity.universal"/>
-          <set_value name="$free" exact="$ship.cargo.free.container + $ship.cargo.free.universal"/>
+          <set_value name="$capacity" exact="$ship.cargo.capacity.all"/>
+          <set_value name="$free" exact="$ship.cargo.free.all"/>
           <set_value name="$totalCapacity" exact="$totalCapacity + $capacity"/>
           <set_value name="$totalFree" exact="$totalFree + $free"/>
           <!-- Commander may run MK3; subordinates with their own GT default
