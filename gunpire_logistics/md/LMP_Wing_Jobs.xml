@@ -24,6 +24,13 @@
         <do_if value="not global.$LMP_WingLoads.{$ship}?">
           <set_value name="global.$LMP_WingLoads.{$ship}" exact="table[]"/>
         </do_if>
+        <!-- Track assigned ships under their ORIGINAL wing commander.
+             A loaded member must not disappear from the completion gate
+             simply because its fleet assignment later changes. -->
+        <do_if value="not global.$LMP_Wings.{$wc}.$pendingMembers?">
+          <set_value name="global.$LMP_Wings.{$wc}.$pendingMembers" exact="table[]"/>
+        </do_if>
+        <set_value name="global.$LMP_Wings.{$wc}.$pendingMembers.{$ship}" exact="true"/>
         <set_value name="global.$LMP_WingLoads.{$ship}.$commander" exact="$wc"/>
         <set_value name="global.$LMP_WingLoads.{$ship}.$ware" exact="$data.$Ware"/>
         <set_value name="global.$LMP_WingLoads.{$ship}.$amount" exact="$data.$Amount"/>
