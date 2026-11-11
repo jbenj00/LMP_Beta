@@ -40,6 +40,7 @@
           <return value="false"/>
         </do_if>
         <set_value name="global.$LMP_Reservations.{$key}" exact="table[]"/>
+        <set_value name="global.$LMP_Reservations.{$key}.$job" exact="$job"/>
         <set_value name="global.$LMP_Reservations.{$key}.$ship" exact="$ship"/>
         <set_value name="global.$LMP_Reservations.{$key}.$site" exact="$site"/>
         <set_value name="global.$LMP_Reservations.{$key}.$ware" exact="$ware"/>
