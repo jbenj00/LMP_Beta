@@ -16,7 +16,7 @@
            Never called for sell-only/illegal trades. -->
       <set_value name="$assigned" exact="0"/>
       <set_value name="$shipsUsed" exact="0"/>
-      <do_if value="not global.$LMP_Wing_ExecuteEnabled? or not global.$LMP_Wing_ExecuteEnabled or not global.$LMP_Wings? or not global.$LMP_Wings.{$commander}?">
+      <do_if value="not global.$LMP_Wing_ExecuteEnabled? or not global.$LMP_Wing_ExecuteEnabled or not global.$LMP_Wings? or not global.$LMP_Wings.{$commander}? or not global.$LMP_Wings.{$commander}.$executeEnabled? or not global.$LMP_Wings.{$commander}.$executeEnabled">
         <return value="table[$Assigned = 0, $Ships = 0, $Reason = 'disabled']"/>
       </do_if>
       <do_if value="not $commander? or not @$commander.exists or not $commander.isplayerowned or not $commander.defaultorder? or $commander.defaultorder.id != 'GalaxyTraderMK3'">
