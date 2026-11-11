@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mdscript name="LMP_TradeCycle" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../x4_scripting_ref/schemas/md.xsd">
+  <cues>
+    <!-- SOURCE: VAS supply_needs_planner.xml RunPlannerBody, lines 814-820.
+         VAS queues buy offers followed by destination sell legs as trade orders.
+         Here the head/tail are explicitly disconnected: caller must supply live
+         source/target offers and must handle completion and release. -->
+    <library name="LMP_QueuePairedTrade" purpose="run_actions">
+      <params>
+        <param name="ship" comment="A verified LMP-controlled empty-cargo ship"/>
+        <param name="sourceOffer" comment="Live seller offer to purchase from"/>
+        <param name="targetOffer" comment="Live build-storage buyer offer to deliver to"/>
+        <param name="amount" comment="Ware units, already limited by need and capacity"/>
+      </params>
+      <actions>
+        <!-- Fail before issuing either leg. Do not replace GT work or
+             flush orders. This component is not responsible for takeover. -->
+        <do_if value="not $ship? or not $ship.exists or not $sourceOffer? or not $sourceOffer.exists or not $targetOffer? or not $targetOffer.exists">
+          <return value="false"/>
+        </do_if>
+        <do_if value="not $sourceOffer.available or not $targetOffer.available or $amount le 0">
+          <return value="false"/>
+        </do_if>
+        <do_if value="$sourceOffer.ware != $targetOffer.ware or $sourceOffer.amount lt $amount or $targetOffer.amount lt $amount">
+          <return value="false"/>
+        </do_if>
+        <do_if value="not $ship.cargo.list? or $ship.cargo.list.count gt 0 or $ship.cargo.free.container lt ($amount * $sourceOffer.ware.volume)">
+          <return value="false"/>
+        </do_if>
+        <do_if value="$ship.tradeorders? and $ship.tradeorders.count gt 0">
+          <return value="false"/>
+        </do_if>
+        <!-- VAS order emission pattern: buy first, delivery second.
+             Do not treat the first trade completion as trip completion. -->
+        <create_trade_order object="$ship" tradeoffer="$sourceOffer" amount="$amount" name="$buyOrder"/>
+        <do_if value="not $buyOrder?">
+          <return value="false"/>
+        </do_if>
+        <create_trade_order object="$ship" tradeoffer="$targetOffer" amount="$amount" name="$deliverOrder"/>
+        <!-- If the second operation fails, the first order may remain queued.
+             Caller must quarantine the ship and reconcile; NEVER silently
+             release a reservation or replan with cargo still aboard. -->
+        <do_if value="not $deliverOrder?">
+          <return value="false"/>
+        </do_if>
+        <return value="table[$buy = $buyOrder, $deliver = $deliverOrder]"/>
+      </actions>
+    </library>
+
+    <!-- GT order.trade.galaxytradermk4.xml completion-loop concept: wake on
+         trade events, but replan only after the *whole* order queue is clear.
+         GUNPIRE adds an empty-hold requirement for the supply-trip boundary. -->
+    <library name="LMP_TripIsFullyFinished" purpose="run_actions">
+      <params><param name="ship"/></params>
+      <actions>
+        <do_if value="not $ship? or not $ship.exists or not $ship.cargo.list?">
+          <return value="false"/>
+        </do_if>
+        <do_if value="$ship.cargo.list.count gt 0">
+          <return value="false"/>
+        </do_if>
+        <!-- Same ship.tradeorders property as GT 1.0.4 MK4 main_loop. -->
+        <return value="not $ship.tradeorders? or $ship.tradeorders.count == 0"/>
+      </actions>
+    </library>
+  </cues>
+</mdscript>
