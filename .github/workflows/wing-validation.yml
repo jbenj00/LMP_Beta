@@ -8,6 +8,9 @@ on:
     paths:
       - 'gunpire_logistics/md/LMP_Wing*.xml'
       - 'tools/check_wing_static.py'
+      - 'tools/check_gt_wing_patch.py'
+      - 'gunpire_logistics/aiscripts/lib.lmp.wing.extend.xml'
+      - 'gunpire_logistics/aiscripts/order.trade.galaxytrader.xml'
       - '.github/workflows/wing-validation.yml'
 
 jobs:
@@ -41,3 +44,5 @@ jobs:
           if failures:
               raise SystemExit('\n'.join(failures))
           PY
+      - name: Validate opt-in GT MK3 wing helper and exact diff structure
+        run: python tools/check_gt_wing_patch.py
