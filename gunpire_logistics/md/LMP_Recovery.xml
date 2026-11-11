@@ -218,8 +218,8 @@
       </actions>
     </library>
 
-    <!-- Before settling a completed trip, prove its ledger still
-         belongs to this ship and its original job and quantity. -->
+    <!-- Verify saved ledger before settlement; never release a missing or
+         unrelated reservation. This library only reads persistent state. -->
     <library name="LMP_VerifyTripReservation" purpose="run_actions">
       <params><param name="ship"/></params>
       <actions>
@@ -231,10 +231,19 @@
           <return value="false"/>
         </do_if>
         <set_value name="$key" exact="$entry.$reservationKey"/>
-        <do_if value="$key != ('
-         completed trade deal's transferredamount as the actual quantity.
-         Matched partials are legitimate, but purchased and delivered
-         amounts must agree before any reservation is released. -->
+        <do_if value="not global.$LMP_Reservations.{$key}?">
+          <return value="false"/>
+        </do_if>
+        <set_value name="$reservation" exact="global.$LMP_Reservations.{$key}"/>
+        <do_if value="$reservation.$ship != $ship or $reservation.$qty != $entry.$requestedQty">
+          <return value="false"/>
+        </do_if>
+        <return value="true"/>
+      </actions>
+    </library>
+
+    <!-- A completed trade deal's transferredamount is the actual quantity.
+         Purchased and delivered amounts must agree before settlement. -->
     <library name="LMP_VerifyActualDelivery" purpose="run_actions">
       <params><param name="ship"/></params>
       <actions>
