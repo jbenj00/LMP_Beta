@@ -58,6 +58,11 @@
         <do_if value="not global.$LMP_Ships.{$ship}.$job? or global.$LMP_Ships.{$ship}.$job == null">
           <return value="false"/>
         </do_if>
+        <!-- Respect terminal states, completed delivery awaiting the
+             verified tail, and any previously investigated failure. -->
+        <do_if value="global.$LMP_Ships.{$ship}.$state != 'RECONCILE_ON_LOAD'">
+          <return value="false"/>
+        </do_if>
         <!-- The saved job and its reservation must agree. A missing or
              mismatched ledger entry cannot be silently reconstructed from
              a cargo hold or a queued trade order. -->
@@ -289,11 +294,7 @@
           <set_value name="global.$LMP_Ships.{$ship}.$stopRequested" exact="true"/>
           <return value="false"/>
         </do_if>
-        <!-- Respect terminal states, completed delivery awaiting the
-             verified tail, and any previously investigated failure. -->
-        <do_if value="global.$LMP_Ships.{$ship}.$state != 'RECONCILE_ON_LOAD'">
-          <return value="false"/>
-        </do_if>
+
         <do_if value="not $ship.cargo.list?">
           <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'CARGO_UNKNOWN_RECONCILE'"/>
           <set_value name="global.$LMP_Ships.{$ship}.$stopRequested" exact="true"/>
