@@ -20,7 +20,7 @@
                    Never infer successful delivery from an empty hold alone. -->
               <!-- Quarantined/cancelled trades require explicit investigation.
                    Do not overwrite their durable failure state on load. -->
-              <do_if value="global.$LMP_Ships.{$ship}.$state != 'DELIVERY_RECONCILE' and global.$LMP_Ships.{$ship}.$state != 'QUARANTINED' and global.$LMP_Ships.{$ship}.$state != 'TRADE_CANCELLED_RECONCILE'">
+              <do_if value="global.$LMP_Ships.{$ship}.$state != 'DELIVERY_RECONCILE' and global.$LMP_Ships.{$ship}.$state != 'QUARANTINED' and global.$LMP_Ships.{$ship}.$state != 'TRADE_CANCELLED_RECONCILE' and global.$LMP_Ships.{$ship}.$state != 'QUANTITY_RECONCILE'">
                 <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'RECONCILE_ON_LOAD'"/>
               </do_if>
             </do_elseif>
@@ -38,6 +38,30 @@
         </do_if>
       </actions>
     </cue>
+    <!-- X4 rml_deliver_wares.xml and jkeoc recovery workflow use a
+         completed trade deal's transferredamount as the actual quantity.
+         Matched partials are legitimate, but purchased and delivered
+         amounts must agree before any reservation is released. -->
+    <library name="LMP_VerifyActualDelivery" purpose="run_actions">
+      <params><param name="ship"/></params>
+      <actions>
+        <do_if value="not $ship? or not $ship.exists or not global.$LMP_Ships? or not global.$LMP_Ships.{$ship}?">
+          <return value="false"/>
+        </do_if>
+        <set_value name="$entry" exact="global.$LMP_Ships.{$ship}"/>
+        <do_if value="not $entry.$requestedQty? or not $entry.$purchasedQty? or not $entry.$deliveredQty?">
+          <return value="false"/>
+        </do_if>
+        <do_if value="$entry.$requestedQty le 0 or $entry.$purchasedQty le 0 or $entry.$deliveredQty le 0">
+          <return value="false"/>
+        </do_if>
+        <do_if value="$entry.$purchasedQty != $entry.$deliveredQty or $entry.$deliveredQty gt $entry.$requestedQty">
+          <return value="false"/>
+        </do_if>
+        <return value="true"/>
+      </actions>
+    </library>
+
     <!-- The delivery-completed event can precede the final removal
          of trade orders. Only a recorded delivery-completion state may
          reconcile later; an unobserved/missing purchase never qualifies. -->
@@ -56,6 +80,16 @@
         <do_if value="not $finished">
           <return value="false"/>
         </do_if>
+        <run_actions ref="md.LMP_Recovery.LMP_VerifyActualDelivery" result="$quantityMatches">
+          <param name="ship" value="$ship"/>
+        </run_actions>
+        <do_if value="not $quantityMatches">
+          <!-- Unknown, zero or mismatched quantities are not proof of
+               a complete transaction, even with empty cargo. -->
+          <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'QUANTITY_RECONCILE'"/>
+          <set_value name="global.$LMP_Ships.{$ship}.$stopRequested" exact="true"/>
+          <return value="false"/>
+        </do_if>
         <set_value name="$job" exact="global.$LMP_Ships.{$ship}.$job"/>
         <run_actions ref="md.LMP_Reservations.LMP_Release">
           <param name="job" value="$job"/>
@@ -66,6 +100,9 @@
         <set_value name="global.$LMP_Ships.{$ship}.$deliverOrder" exact="null"/>
         <set_value name="global.$LMP_Ships.{$ship}.$sourceOffer" exact="null"/>
         <set_value name="global.$LMP_Ships.{$ship}.$targetOffer" exact="null"/>
+        <set_value name="global.$LMP_Ships.{$ship}.$requestedQty" exact="null"/>
+        <set_value name="global.$LMP_Ships.{$ship}.$purchasedQty" exact="null"/>
+        <set_value name="global.$LMP_Ships.{$ship}.$deliveredQty" exact="null"/>
         <return value="true"/>
       </actions>
     </library>
@@ -84,23 +121,36 @@
         </do_if>
         <!-- A cancel or partial-order failure is terminal until explicit
              reconciliation. Late completion events cannot clear its job. -->
-        <do_if value="global.$LMP_Ships.{$ship}.$state == 'QUARANTINED' or global.$LMP_Ships.{$ship}.$state == 'TRADE_CANCELLED_RECONCILE'">
+        <do_if value="global.$LMP_Ships.{$ship}.$state == 'QUARANTINED' or global.$LMP_Ships.{$ship}.$state == 'TRADE_CANCELLED_RECONCILE' or global.$LMP_Ships.{$ship}.$state == 'QUANTITY_RECONCILE'">
           <return/>
         </do_if>
         <!-- The purchase event NEVER releases the reservation. -->
         <do_if value="$order == global.$LMP_Ships.{$ship}.$buyOrder">
+          <!-- Event's deal carries executed units, not requested units. -->
+          <set_value name="global.$LMP_Ships.{$ship}.$purchasedQty" exact="if $order.transferredamount? then $order.transferredamount else 0"/>
           <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'DELIVERING'"/>
           <return/>
         </do_if>
         <do_if value="$order != global.$LMP_Ships.{$ship}.$deliverOrder">
           <return/>
         </do_if>
+        <set_value name="global.$LMP_Ships.{$ship}.$deliveredQty" exact="if $order.transferredamount? then $order.transferredamount else 0"/>
         <run_actions ref="md.LMP_TradeCycle.LMP_TripIsFullyFinished" result="$complete">
           <param name="ship" value="$ship"/>
         </run_actions>
         <do_if value="not $complete">
           <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'DELIVERY_RECONCILE'"/>
           <return/>
+        </do_if>
+        <run_actions ref="md.LMP_Recovery.LMP_VerifyActualDelivery" result="$quantityMatches">
+          <param name="ship" value="$ship"/>
+        </run_actions>
+        <do_if value="not $quantityMatches">
+          <!-- Unknown, zero or mismatched quantities are not proof of
+               a complete transaction, even with empty cargo. -->
+          <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'QUANTITY_RECONCILE'"/>
+          <set_value name="global.$LMP_Ships.{$ship}.$stopRequested" exact="true"/>
+          <return value="false"/>
         </do_if>
         <set_value name="$job" exact="global.$LMP_Ships.{$ship}.$job"/>
         <run_actions ref="md.LMP_Reservations.LMP_Release"><param name="job" value="$job"/></run_actions>
@@ -110,6 +160,9 @@
         <set_value name="global.$LMP_Ships.{$ship}.$deliverOrder" exact="null"/>
         <set_value name="global.$LMP_Ships.{$ship}.$sourceOffer" exact="null"/>
         <set_value name="global.$LMP_Ships.{$ship}.$targetOffer" exact="null"/>
+        <set_value name="global.$LMP_Ships.{$ship}.$requestedQty" exact="null"/>
+        <set_value name="global.$LMP_Ships.{$ship}.$purchasedQty" exact="null"/>
+        <set_value name="global.$LMP_Ships.{$ship}.$deliveredQty" exact="null"/>
         <!-- Stop takes precedence over another dispatch. Only our own
              PASSIVE default is cancelled; no queue/cargo flush occurs. -->
         <do_if value="global.$LMP_Ships.{$ship}.$stopRequested? and global.$LMP_Ships.{$ship}.$stopRequested">
