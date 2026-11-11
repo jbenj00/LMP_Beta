@@ -18,6 +18,7 @@ assert "$snapshot? and global.$LMP_Ships.{$ship}.$snapshot != null" in s, "Never
 assert "global.$LMP_Ships.{$ship}.$role != 'ACTIVE'" in r, "Require explicit ACTIVE role"
 assert "GUNPIRE_IsGTManagedShip" in r, "Require documented GT order"
 assert "$ship.tradeorders.count gt 0" in r, "Do not borrow queued trades"
+assert "$ship.orders.count gt 0" in r, "Do not borrow ships with queued non-trade orders"
 assert "GUNPIRE_SafetyCheckCargoEmpty" in r, "Require empty cargo"
 assert "$job != null" in r, "Do not interrupt an existing logistics job"
 assert "$snapshot != null" in r, "Never overwrite incomplete handoff snapshot"
