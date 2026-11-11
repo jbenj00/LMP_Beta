@@ -11,6 +11,7 @@ registry = read("LMP_ShipRegistry.xml")
 recovery = read("LMP_Recovery.xml")
 menu = read("LMP_ContextMenu.xml")
 cycle = read("LMP_TradeCycle.xml")
+reservations = read("LMP_Reservations.xml")
 
 def named(root_node, tag, name):
     result = [n for n in root_node.iter(tag) if n.attrib.get("name") == name]
@@ -57,6 +58,10 @@ assert "TRADE_CANCELLED_RECONCILE" in load_xml, "Save-load must preserve quarant
 assert "TRADE_CANCELLED_RECONCILE" in ET.tostring(on_trade, encoding="unicode"), "Late trade completion must not erase cancellation"
 assert not list(cancel.iter("remove_value")), "No reservations/registry may be released on cancel"
 assert not list(cancel.iter("cancel_order")), "Cancellation recovery must not mutate ship order queue"
+reserve = named(reservations, "library", "LMP_Reserve")
+reserve_xml = ET.tostring(reserve, encoding="unicode")
+assert "global.$LMP_Reservations.{$key}?" in reserve_xml, "Duplicate job guard required"
+assert reserve_xml.index("global.$LMP_Reservations.{$key}?") < reserve_xml.index('<set_value name="global.$LMP_Reservations.{$key}"'), "Duplicate guard must precede ledger write"
 assert any(e.attrib.get("ref") == "md.LMP_Dispatcher.LMP_DispatchOne" for e in on_trade.iter("run_actions"))
 assert "cargo.list.count" in ET.tostring(finished, encoding="unicode")
 assert "tradeorders.count" in ET.tostring(finished, encoding="unicode")
