@@ -20,14 +20,18 @@
         <do_if value="$isGT">
           <return/>
         </do_if>
-        <do_if value="global.$LMP_Ships? and global.$LMP_Ships.{$ship}? and global.$LMP_Ships.{$ship}.$role == 'PASSIVE' and (not global.$LMP_Ships.{$ship}.$stopRequested? or not global.$LMP_Ships.{$ship}.$stopRequested)">
-          <signal_cue_instantly cue="md.Interact_Menu_API.Add_Action" param="table[
-            $id = 'gunpire_stop_passive',
-            $section = 'selected_orders',
-            $text = 'GUNPIRE: Stop Passive Logistics',
-            $icon = 'order_tradeperform',
-            $callback = LMP_StopPassiveAction,
-          ]"/>
+        <do_if value="global.$LMP_Ships? and global.$LMP_Ships.{$ship}? and global.$LMP_Ships.{$ship}.$role == 'PASSIVE'">
+          <!-- While a stop is pending, never expose Start/reenrollment.
+               In-flight reservations still belong to this ship. -->
+          <do_if value="not global.$LMP_Ships.{$ship}.$stopRequested? or not global.$LMP_Ships.{$ship}.$stopRequested">
+            <signal_cue_instantly cue="md.Interact_Menu_API.Add_Action" param="table[
+              $id = 'gunpire_stop_passive',
+              $section = 'selected_orders',
+              $text = 'GUNPIRE: Stop Passive Logistics',
+              $icon = 'order_tradeperform',
+              $callback = LMP_StopPassiveAction,
+            ]"/>
+          </do_if>
         </do_if>
         <do_else>
           <signal_cue_instantly cue="md.Interact_Menu_API.Add_Action" param="table[
