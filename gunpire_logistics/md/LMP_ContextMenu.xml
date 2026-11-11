@@ -70,6 +70,11 @@
         <run_actions ref="md.LMP_Recovery.LMP_ReconcileDeliveryTail" result="$tailDone">
           <param name="ship" value="$ship"/>
         </run_actions>
+        <!-- A verified completed BUY-only failure may become a stranded
+             delivery after the original reservation and cargo agree. -->
+        <run_actions ref="md.LMP_Recovery.LMP_RecheckIncompletePair" result="$pairChecked">
+          <param name="ship" value="$ship"/>
+        </run_actions>
         <!-- Retry only a fully verified stranded shipment. This existing
              PASSIVE tick provides the retry cadence; no fleet polling. -->
         <run_actions ref="md.LMP_Recovery.LMP_ResumeStrandedDelivery" result="$resumed">
