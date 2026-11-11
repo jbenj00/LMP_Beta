@@ -24,7 +24,24 @@
         <do_if value="$sourceOffer.ware != $targetOffer.ware or $sourceOffer.amount lt $amount or $targetOffer.amount lt $amount">
           <return value="false"/>
         </do_if>
-        <do_if value="not $ship.cargo.list? or $ship.cargo.list.count gt 0 or $ship.cargo.free.container lt ($amount * $sourceOffer.ware.volume)">
+        <do_if value="not $ship.cargo.list? or $ship.cargo.list.count gt 0">
+          <return value="false"/>
+        </do_if>
+        <set_value name="$ware" exact="$sourceOffer.ware"/>
+        <do_if value="not $ware? or $ware.volume le 0 or $ship.cargo.{$ware}.max le 0">
+          <return value="false"/>
+        </do_if>
+        <set_value name="$freeVolume" exact="0"/>
+        <do_if value="$ware.waretransport == waretransport.container">
+          <set_value name="$freeVolume" exact="$ship.cargo.free.container + $ship.cargo.free.universal"/>
+        </do_if>
+        <do_elseif value="$ware.waretransport == waretransport.solid">
+          <set_value name="$freeVolume" exact="$ship.cargo.free.solid + $ship.cargo.free.universal"/>
+        </do_elseif>
+        <do_elseif value="$ware.waretransport == waretransport.liquid">
+          <set_value name="$freeVolume" exact="$ship.cargo.free.liquid + $ship.cargo.free.universal"/>
+        </do_elseif>
+        <do_if value="$freeVolume lt ($amount * $ware.volume)">
           <return value="false"/>
         </do_if>
         <do_if value="$ship.tradeorders? and $ship.tradeorders.count gt 0">
