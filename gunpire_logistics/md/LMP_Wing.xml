@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mdscript name="LMP_Wing" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../x4_scripting_ref/schemas/md.xsd">
+  <cues>
+    <!-- Safe wing control plane. Does NOT write default orders, override GT,
+         move ships, rename ships, or take cargo. Native commander/subordinate
+         membership is the only supported topology at this stage.
+         Evidence: GT 1.0.4 gt_core_system.xml RunCommanderGTReactivationPass
+         uses commander.allsubordinates, ship.commander and toplevelcommander.
+         Capacity: GT gt_home_fleet_profile.xml uses container + universal. -->
+    <cue name="LMP_Wing_Init" instantiate="true">
+      <conditions><event_game_loaded/></conditions>
+      <actions>
+        <do_if value="not global.$LMP_Wings?">
+          <set_value name="global.$LMP_Wings" exact="table[]"/>
+        </do_if>
+      </actions>
+    </cue>
+
+    <!-- Create a persistent logical wing without touching the commander's GT order.
+         Existing subordinates are re-discovered at each planning boundary. -->
+    <library name="LMP_RegisterWing" purpose="run_actions">
+      <params><param name="commander"/></params>
+      <actions>
+        <do_if value="not $commander? or not $commander.exists or not $commander.isplayerowned or not $commander.isclass.{class.ship}">
+          <return value="false"/>
+        </do_if>
+        <do_if value="not $commander.defaultorder? or $commander.defaultorder.id != 'GalaxyTraderMK3'">
+          <return value="false"/>
+        </do_if>
+        <do_if value="not global.$LMP_Wings?">
+          <set_value name="global.$LMP_Wings" exact="table[]"/>
+        </do_if>
+        <do_if value="not global.$LMP_Wings.{$commander}?">
+          <set_value name="global.$LMP_Wings.{$commander}" exact="table[]"/>
+          <set_value name="global.$LMP_Wings.{$commander}.$state" exact="'OBSERVE_ONLY'"/>
+          <set_value name="global.$LMP_Wings.{$commander}.$jobsCompleted" exact="0"/>
+        </do_if>
+        <return value="true"/>
+      </actions>
+    </library>
+
+    <!-- Only count direct subordinates in the same native fleet. Do not
+         inadvertently aggregate an entire nested fleet or GT trader assigned
+         elsewhere. Ships with queued work/cargo retain their actual free volume. -->
+    <library name="LMP_GetWingCapacity" purpose="run_actions">
+      <params><param name="commander"/></params>
+      <actions>
+        <do_if value="not $commander? or not $commander.exists or not global.$LMP_Wings? or not global.$LMP_Wings.{$commander}?">
+          <return value="false"/>
+        </do_if>
+        <set_value name="$ships" exact="[]"/>
+        <append_to_list name="$ships" exact="$commander"/>
+        <do_if value="$commander.subordinates?">
+          <do_for_each name="$member" in="$commander.subordinates">
+            <do_if value="$member? and $member.exists and $member.isplayerowned and $member.isclass.{class.ship} and $member.commander? and $member.commander == $commander">
+              <append_to_list name="$ships" exact="$member"/>
+            </do_if>
+          </do_for_each>
+        </do_if>
+        <set_value name="$totalCapacity" exact="0"/>
+        <set_value name="$totalFree" exact="0"/>
+        <set_value name="$eligibleFree" exact="0"/>
+        <set_value name="$eligible" exact="[]"/>
+        <set_value name="$skipped" exact="[]"/>
+        <do_for_each name="$ship" in="$ships">
+          <set_value name="$capacity" exact="$ship.cargo.capacity.container + $ship.cargo.capacity.universal"/>
+          <set_value name="$free" exact="$ship.cargo.free.container + $ship.cargo.free.universal"/>
+          <set_value name="$totalCapacity" exact="$totalCapacity + $capacity"/>
+          <set_value name="$totalFree" exact="$totalFree + $free"/>
+          <!-- Commander may run MK3; subordinates with their own GT default
+               orders are not eligible for a coordinated wing transport leg. -->
+          <set_value name="$usable" exact="$capacity gt 0"/>
+          <do_if value="$ship != $commander and $ship.defaultorder? and $ship.defaultorder.id != 'Assist'">
+            <set_value name="$usable" exact="false"/>
+          </do_if>
+          <do_if value="$ship != $commander and $ship.tradeorders? and $ship.tradeorders.count gt 0">
+            <set_value name="$usable" exact="false"/>
+          </do_if>
+          <do_if value="$usable">
+            <append_to_list name="$eligible" exact="$ship"/>
+            <set_value name="$eligibleFree" exact="$eligibleFree + $free"/>
+          </do_if>
+          <do_else>
+            <append_to_list name="$skipped" exact="$ship"/>
+          </do_else>
+        </do_for_each>
+        <return value="table[$commander = $commander, $ships = $ships, $eligible = $eligible, $skipped = $skipped, $capacity = $totalCapacity, $free = $totalFree, $eligibleFree = $eligibleFree]"/>
+      </actions>
+    </library>
+
+    <!-- Read-only observation for debugging and future GT MK3 adapter.
+         Never reinterpret this as authorization to change GT's default order. -->
+    <library name="LMP_ReportWing" purpose="run_actions">
+      <params><param name="commander"/></params>
+      <actions>
+        <run_actions ref="md.LMP_Wing.LMP_GetWingCapacity" result="$stats"><param name="commander" value="$commander"/></run_actions>
+        <do_if value="not $stats">
+          <return value="false"/>
+        </do_if>
+        <debug_text text="'[GUNPIRE][WING] WC=' + $commander.idcode + ' ships=' + $stats.$ships.count + ' eligible=' + $stats.$eligible.count + ' skipped=' + $stats.$skipped.count + ' cap=' + $stats.$capacity + ' free=' + $stats.$free + ' usable=' + $stats.$eligibleFree" chance="100"/>
+        <return value="$stats"/>
+      </actions>
+    </library>
+  </cues>
+</mdscript>
