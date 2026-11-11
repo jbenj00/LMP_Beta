@@ -60,8 +60,8 @@
         <set_value name="$loaded" exact="0"/>
         <set_value name="$clean" exact="0"/>
         <set_value name="$missing" exact="0"/>
-        <do_if value="$commander.subordinates?">
-          <do_for_each name="$ship" in="$commander.subordinates">
+        <do_if value="global.$LMP_Wings.{$commander}.$pendingMembers?">
+          <do_for_each name="$ship" in="global.$LMP_Wings.{$commander}.$pendingMembers.keys">
             <do_if value="not global.$LMP_WingLoads? or not global.$LMP_WingLoads.{$ship}? or global.$LMP_WingLoads.{$ship}.$commander != $commander">
               <continue/>
             </do_if>
