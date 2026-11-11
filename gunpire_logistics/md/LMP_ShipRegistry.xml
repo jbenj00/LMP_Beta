@@ -71,6 +71,17 @@
         <do_if value="not $enrolled or global.$LMP_Ships.{$ship}.$role != 'PASSIVE'">
           <return value="false"/>
         </do_if>
+        <run_actions ref="md.LMP_TradeCycle.LMP_TripIsFullyFinished" result="$idle">
+          <param name="ship" value="$ship"/>
+        </run_actions>
+        <do_if value="not $idle">
+          <return value="false"/>
+        </do_if>
+        <!-- Explicit player action assigns the permanent PASSIVE default order.
+             ACTIVE GT traders never reach this path. -->
+        <do_if value="not $ship.defaultorder? or $ship.defaultorder.id != 'LMP_Passive'">
+          <create_order id="'LMP_Passive'" object="$ship" default="true"/>
+        </do_if>
         <set_value name="global.$LMP_Ships.{$ship}.$stopRequested" exact="false"/>
         <run_actions ref="md.LMP_Dispatcher.LMP_DispatchOne" result="$ok"><param name="ship" value="$ship"/></run_actions>
         <return value="$ok"/>
