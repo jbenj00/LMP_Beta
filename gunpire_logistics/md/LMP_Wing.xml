@@ -131,6 +131,29 @@
       </actions>
     </library>
 
+    <!-- Release only an idle, configuration-only LMP Wing. Do not touch
+         native orders or a wing with unresolved cargo/work. -->
+    <library name="LMP_UnregisterDedicatedWing" purpose="run_actions">
+      <params><param name="commander"/></params>
+      <actions>
+        <do_if value="not $commander? or not $commander.exists or not global.$LMP_Ships? or not global.$LMP_Ships.{$commander}? or not global.$LMP_Wings? or not global.$LMP_Wings.{$commander}?">
+          <return value="false"/>
+        </do_if>
+        <do_if value="global.$LMP_Ships.{$commander}.$role != 'WING' or global.$LMP_Wings.{$commander}.$state != 'LMP_WING_CONFIG_ONLY'">
+          <return value="false"/>
+        </do_if>
+        <do_if value="global.$LMP_Ships.{$commander}.$job? and global.$LMP_Ships.{$commander}.$job != null">
+          <return value="false"/>
+        </do_if>
+        <do_if value="not $commander.cargo.list? or $commander.cargo.list.count gt 0 or ($commander.tradeorders? and $commander.tradeorders.count gt 0) or ($commander.orders? and $commander.orders.count gt 0) or $commander.defaultorder?">
+          <return value="false"/>
+        </do_if>
+        <remove_value name="global.$LMP_Wings.{$commander}"/>
+        <remove_value name="global.$LMP_Ships.{$commander}"/>
+        <return value="true"/>
+      </actions>
+    </library>
+
     <!-- Only count direct subordinates in the same native fleet. Do not
          inadvertently aggregate an entire nested fleet or GT trader assigned
          elsewhere. Ships with queued work/cargo retain their actual free volume. -->
