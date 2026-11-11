@@ -45,6 +45,9 @@
         <set_value name="global.$LMP_Reservations.{$key}.$ware" exact="$ware"/>
         <set_value name="global.$LMP_Reservations.{$key}.$qty" exact="$qty"/>
         <set_value name="global.$LMP_Reservations.{$key}.$state" exact="'RESERVED'"/>
+        <!-- Persist the exact reservation lookup key with the ship.
+             Load recovery must never guess or recreate a missing ledger. -->
+        <set_value name="global.$LMP_Ships.{$ship}.$reservationKey" exact="$key"/>
         <run_actions ref="md.GUNPIRE_Core.GUNPIRE_Log">
           <param name="component" value="'RESERVE'"/>
           <param name="job" value="$job"/>
