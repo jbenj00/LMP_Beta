@@ -32,6 +32,12 @@
            from a search result. This executes only after the commander
            created both of its own orders. -->
       <set_value name="$remaining" exact="$additionalTarget"/>
+      <!-- Keep one shared wallet budget: do not offer each member the
+           same full account balance after GT queues its own order. -->
+      <run_script name="'lib.gt.pay.account'" result="$wingAccount">
+        <param name="ship" value="$commander"/>
+      </run_script>
+      <set_value name="$wingCash" exact="$wingAccount.$Money - 1000Cr"/>
       <do_for_each name="$ship" in="$commander.subordinates">
         <do_if value="$remaining le 0">
           <break/>
@@ -77,11 +83,7 @@
              reserve. No extra order without budget. Credits are rechecked
              after each member's purchase order creates its reservation. -->
         <do_if value="not $buyInternal and $source.unitprice gt 0">
-          <run_script name="'lib.gt.pay.account'" result="$account">
-            <param name="ship" value="$ship"/>
-          </run_script>
-          <set_value name="$spendable" exact="$account.$Money - 1000Cr"/>
-          <set_value name="$affordable" exact="($spendable / $source.unitprice)i"/>
+          <set_value name="$affordable" exact="($wingCash / $source.unitprice)i"/>
           <set_value name="$qty" exact="[$qty, $affordable].min"/>
         </do_if>
         <do_if value="$qty le 0">
@@ -92,6 +94,9 @@
              recovery without deleting existing cargo or orders. -->
         <create_trade_order object="$ship" tradeoffer="$sink" amount="$qty" immediate="true" internal="$sellInternal"/>
         <create_trade_order object="$ship" tradeoffer="$source" amount="$qty" immediate="true" internal="$buyInternal"/>
+        <do_if value="not $buyInternal and $source.unitprice gt 0">
+          <set_value name="$wingCash" exact="$wingCash - ($qty * $source.unitprice)"/>
+        </do_if>
         <set_value name="$assigned" exact="$assigned + $qty"/>
         <set_value name="$remaining" exact="$remaining - $qty"/>
         <set_value name="$shipsUsed" exact="$shipsUsed + 1"/>
