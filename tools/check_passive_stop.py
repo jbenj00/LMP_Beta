@@ -73,5 +73,18 @@ assert reserve_xml.index("global.$LMP_Reservations.{$key}?") < reserve_xml.index
 assert any(e.attrib.get("ref") == "md.LMP_Dispatcher.LMP_DispatchOne" for e in on_trade.iter("run_actions"))
 assert "cargo.list.count" in ET.tostring(finished, encoding="unicode")
 assert "tradeorders.count" in ET.tostring(finished, encoding="unicode")
+# Trade completion must account for actual units, never assume requested == delivered.
+verify = named(recovery, "library", "LMP_VerifyActualDelivery")
+verify_xml = ET.tostring(verify, encoding="unicode")
+on_trade_xml = ET.tostring(on_trade, encoding="unicode")
+assert "$requestedQty" in dispatch_xml and "$purchasedQty" in dispatch_xml and "$deliveredQty" in dispatch_xml
+assert "$purchasedQty != $entry.$deliveredQty" in verify_xml
+assert "$entry.$deliveredQty gt $entry.$requestedQty" in verify_xml
+assert "transferredamount" in on_trade_xml
+assert "$purchasedQty" in on_trade_xml and "$deliveredQty" in on_trade_xml
+assert "LMP_VerifyActualDelivery" in on_trade_xml and "LMP_VerifyActualDelivery" in tail_xml
+assert "QUANTITY_RECONCILE" in on_trade_xml and "QUANTITY_RECONCILE" in tail_xml
+assert "QUANTITY_RECONCILE" in load_xml, "Save-load must preserve unresolved quantities"
+
 print("PASS: PASSIVE stop guards, completion and retry hooks are present")
 print("NOTE: structural tests do not prove X4 runtime behavior")
