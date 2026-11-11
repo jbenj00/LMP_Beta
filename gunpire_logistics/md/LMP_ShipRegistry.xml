@@ -58,6 +58,14 @@
     <library name="LMP_StartPassiveShip" purpose="run_actions">
       <params><param name="ship"/></params>
       <actions>
+        <do_if value="not $ship? or not $ship.exists or $ship.owner != faction.player">
+          <return value="false"/>
+        </do_if>
+        <!-- Explicit Stop owns this ship until its existing trip is
+             reconciled. Do not turn Stop into a silent restart. -->
+        <do_if value="global.$LMP_Ships? and global.$LMP_Ships.{$ship}? and global.$LMP_Ships.{$ship}.$stopRequested? and global.$LMP_Ships.{$ship}.$stopRequested">
+          <return value="false"/>
+        </do_if>
         <run_actions ref="md.GUNPIRE_Core.GUNPIRE_IsGTManagedShip" result="$gt">
           <param name="ship" value="$ship"/>
         </run_actions>
