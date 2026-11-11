@@ -76,6 +76,13 @@
           <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'WAITING_FOR_ELIGIBILITY'"/>
           <return value="false"/>
         </do_if>
+        <!-- GT itself checks ship.orders separately from tradeorders.
+             An empty cargo hold does not make queued non-trade work safe
+             to interrupt. This is a non-mutating eligibility gate. -->
+        <do_if value="$ship.orders? and $ship.orders.count gt 0">
+          <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'WAITING_FOR_ELIGIBILITY'"/>
+          <return value="false"/>
+        </do_if>
         <!-- Cargo / active job check: exact API pending; currently conservative -->
         <run_actions ref="md.GUNPIRE_Core.GUNPIRE_SafetyCheckCargoEmpty" result="$empty">
           <param name="ship" value="$ship"/>
