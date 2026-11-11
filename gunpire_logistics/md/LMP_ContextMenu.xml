@@ -72,10 +72,10 @@
           <param name="ship" value="$ship"/>
         </run_actions>
         <do_if value="$started">
-          <show_notification text="'GUNPIRE: Passive logistics started'" timeout="4s"/>
+          <show_notification text="'GUNPIRE: Passive logistics enabled'" timeout="4s"/>
         </do_if>
         <do_else>
-          <show_notification text="'GUNPIRE: No eligible delivery; ship unchanged'" timeout="4s"/>
+          <show_notification text="'GUNPIRE: Cannot enroll ship; must be idle and empty'" timeout="4s"/>
         </do_else>
         <reset_cue cue="this"/>
       </actions>
