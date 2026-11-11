@@ -34,6 +34,12 @@
 - `md/LMP_Wing_GTCommitted.xml` now computes a per-subordinate quote preview from the optional GT committed trade metadata and stores scalar units/ship counts. The quoted additional capacity excludes the commander's already-committed hold; **no subordinate orders are created**.
 - Added `tools/check_wing_static.py`: parse/consistency/non-mutating-action checks for wing modules. Does not substitute for X4 9.00 schema validation or runtime tests.
 
+## Current handoff and validation changes
+- Audited GT 1.0.4 MK3's final commit sequence: its own validation covers offer availability, blacklist/routing restrictions, player funds and then immediately creates `SELL` and `BUY` trade orders (roughly lines 6300–6570). Existing post-order signals cannot replace this with a fleet-level trade after the fact.
+- Corrected `LMP_Wing_OfferValidation.xml`: candidate quotes from multiple ships now consume a **shared** seller and buyer quantity budget, rather than counting one station's available ware repeatedly. This remains a conservative quote, **not an atomic reservation**.
+- Added `.github/workflows/wing-validation.yml`: Python XML parse/non-mutating checks plus strict X4 `md.xsd` validation. The workflow has been pushed and run queued/in progress; do not claim it passes until GitHub reports success.
+- **Execution remains gated.** The safe integration is a synchronous adapter inserted within GT's pre-commit AI sequence, subject to full GT source compatibility, and a consistent way for MK3 to delegate the trade without also creating its normal orders.
+
 ## Verified source evidence
 - Galaxy Trader 1.0.4 `aiscripts/order.trade.galaxytrader.xml`: order id `GalaxyTraderMK3`; the MK3 main trade loop calculates utilization against `this.ship.cargo.capacity.all` (around line 5762). A fleet-capacity-aware **GT adapter** must be introduced at the correct planning points, not just one substitute variable.
 - Galaxy Trader 1.0.4 `md/gt_core_system.xml`: `RunCommanderGTReactivationPass` (around line 563) explicitly handles `allsubordinates`, `commander`, and `Assist` base orders. It is unsafe to overwrite them with a second AI.
