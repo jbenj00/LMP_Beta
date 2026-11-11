@@ -1,9 +1,7 @@
 name: GUNPIRE wing XML checks
 
 on:
-  push:
-    branches:
-      - gunpire/integrated-trip-20261111
+  workflow_dispatch:
   pull_request:
     paths:
       - 'gunpire_logistics/md/LMP_Wing*.xml'
@@ -12,6 +10,10 @@ on:
       - 'gunpire_logistics/aiscripts/lib.lmp.wing.extend.xml'
       - 'gunpire_logistics/aiscripts/order.trade.galaxytrader.xml'
       - '.github/workflows/wing-validation.yml'
+
+concurrency:
+  group: wing-validation-${{ github.event.pull_request.number || github.ref_name }}
+  cancel-in-progress: true
 
 jobs:
   check-wing:
