@@ -35,3 +35,12 @@
 - Static XML parsing and cross-script call resolution passed locally. X4 schema compilation timed out; runtime and in-game behavior remain untested.
 
 This is a substantial integration increment, but ACTIVE trader handoff, station-demand aging, MK1-style fallback, full recovery and richer UI are not implemented yet.
+
+## Further continuation: aged player-station demand
+
+- Added `md/LMP_StationDemand.xml`, deriving buyer discovery from GT MK4 player-station logic and buy-offer filtering from VAS.
+- Records the first time each player-owned station/ware buy need is seen and retains it across saves; sorts older needs first.
+- Dispatcher now tries all build-storage needs before aged POS buy orders and reuses the same sourcing, quantity, reservation and paired delivery path.
+- Does not yet expire stale age entries or provide GT MK1-style fallback selling.
+
+No in-game execution or compatibility result is claimed.
