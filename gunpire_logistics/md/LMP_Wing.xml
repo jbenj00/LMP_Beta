@@ -148,6 +148,22 @@
         <do_if value="not $commander.cargo.list? or $commander.cargo.list.count gt 0 or ($commander.tradeorders? and $commander.tradeorders.count gt 0) or ($commander.orders? and $commander.orders.count gt 0) or $commander.defaultorder?">
           <return value="false"/>
         </do_if>
+        <!-- Release the commander only after every enrolled member was
+             separately released; never orphan LMP-owned member records. -->
+        <do_if value="$commander.subordinates?">
+          <do_for_each name="$member" in="$commander.subordinates">
+            <do_if value="global.$LMP_Ships.{$member}? and global.$LMP_Ships.{$member}.$role == 'WING_MEMBER' and global.$LMP_Ships.{$member}.$wingCommander == $commander">
+              <return value="false"/>
+            </do_if>
+          </do_for_each>
+        </do_if>
+        <!-- A temporarily detached member may still be linked in our saved
+             LMP registry; check the ledger, not just native topology. -->
+        <do_for_each name="$enrolledShip" in="global.$LMP_Ships.keys">
+          <do_if value="global.$LMP_Ships.{$enrolledShip}.$role == 'WING_MEMBER' and global.$LMP_Ships.{$enrolledShip}.$wingCommander == $commander">
+            <return value="false"/>
+          </do_if>
+        </do_for_each>
         <remove_value name="global.$LMP_Wings.{$commander}"/>
         <remove_value name="global.$LMP_Ships.{$commander}"/>
         <return value="true"/>
