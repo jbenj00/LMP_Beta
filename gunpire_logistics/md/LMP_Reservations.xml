@@ -34,7 +34,12 @@
         <do_if value="not global.$LMP_Reservations?">
           <set_value name="global.$LMP_Reservations" exact="table[]"/>
         </do_if>
-        <set_value name="$key" exact="'
+        <set_value name="$key" exact="'$' + $job"/>
+        <!-- Reject duplicate job IDs before touching the reservation. -->
+        <do_if value="global.$LMP_Reservations.{$key}?">
+          <return value="false"/>
+        </do_if>
+        <set_value name="global.$LMP_Reservations.{$key}" exact="table[]"/>
         <set_value name="global.$LMP_Reservations.{$key}.$ship" exact="$ship"/>
         <set_value name="global.$LMP_Reservations.{$key}.$site" exact="$site"/>
         <set_value name="global.$LMP_Reservations.{$key}.$ware" exact="$ware"/>
