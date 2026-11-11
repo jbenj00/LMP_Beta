@@ -13,7 +13,7 @@
         <param name="buyStation" value="$finalBuyStation"/>
         <param name="sellStation" value="$finalSellStation"/>
         <param name="ware" value="$wareForPendingTrade"/>
-        <param name="additionalTarget" value="$finalBuyAmount"/>
+        <param name="additionalTarget" value="0"/>
         <param name="buyInternal" value="$tradeBuyLegInternal"/>
         <param name="sellInternal" value="$tradeSellLegInternal"/>
       </run_script>
