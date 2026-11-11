@@ -37,14 +37,9 @@
             </do_all>
           </do_all>
         </do_if>
-        <!-- If demand vanished, a later new order gets a fresh age. -->
-        <set_value name="$all" exact="global.$LMP_POSFirstSeen.keys"/>
-        <do_all exact="$all.count" counter="$i">
-          <set_value name="$key" exact="$all.{$i}"/>
-          <do_if value="not $fresh.{$key}?">
-            <remove_value name="global.$LMP_POSFirstSeen.{$key}"/>
-          </do_if>
-        </do_all>
+        <!-- Do not prune age history from a per-ship tradepartner scan:
+             another ship may still see a demand invisible to this ship.
+             Cleanup requires a buyer-independent world scan. -->
         <do_if value="$needs.count gt 1">
           <sort_list list="$needs" sortbyvalue="loop.element.$firstSeen"/>
         </do_if>
