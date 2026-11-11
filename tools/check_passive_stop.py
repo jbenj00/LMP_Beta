@@ -47,6 +47,16 @@ assert "DELIVERY_RECONCILE" in tail_xml, "Tail reconciliation needs observed del
 assert "LMP_TripIsFullyFinished" in tail_xml, "Tail reconciliation needs an empty hold and clear trade queue"
 assert "LMP_Reservations.LMP_Release" in tail_xml, "Tail must release reservation at clean boundary"
 assert any(e.attrib.get("ref") == "md.LMP_Recovery.LMP_ReconcileDeliveryTail" for e in tick.iter("run_actions")), "Idle tick must revisit delayed delivery completion"
+cancel = named(recovery, "cue", "LMP_OnTradeCancelled")
+cancel_xml = ET.tostring(cancel, encoding="unicode")
+load_xml = ET.tostring(named(recovery, "cue", "LMP_Recovery_OnLoad"), encoding="unicode")
+assert "$buyOrder" in cancel_xml and "$deliverOrder" in cancel_xml, "Cancelled order must match tracked LMP order"
+assert "TRADE_CANCELLED_RECONCILE" in cancel_xml, "Cancel must quarantine ship"
+assert "$stopRequested" in cancel_xml, "Cancel must block further dispatch"
+assert "TRADE_CANCELLED_RECONCILE" in load_xml, "Save-load must preserve quarantined state"
+assert "TRADE_CANCELLED_RECONCILE" in ET.tostring(on_trade, encoding="unicode"), "Late trade completion must not erase cancellation"
+assert not list(cancel.iter("remove_value")), "No reservations/registry may be released on cancel"
+assert not list(cancel.iter("cancel_order")), "Cancellation recovery must not mutate ship order queue"
 assert any(e.attrib.get("ref") == "md.LMP_Dispatcher.LMP_DispatchOne" for e in on_trade.iter("run_actions"))
 assert "cargo.list.count" in ET.tostring(finished, encoding="unicode")
 assert "tradeorders.count" in ET.tostring(finished, encoding="unicode")
