@@ -75,27 +75,36 @@
         <run_actions ref="md.LMP_Demand.LMP_ScanBuildStorages" result="$demand">
           <param name="ship" value="$ship"/>
         </run_actions>
-        <do_if value="$demand.keys.count == 0">
-          <run_actions ref="md.GUNPIRE_Core.GUNPIRE_Log">
-            <param name="component" value="'DISPATCH'"/>
-            <param name="message" value="'No build storages'"/>
-          </run_actions>
+        <!-- Stage 1: all build-storage offers. Stage 2: aged POS buy offers,
+             sorted oldest first. Construction needs always outrank POS. -->
+        <set_value name="$candidates" exact="[]"/>
+        <do_if value="global.$LMP_Shortages?">
+          <do_all exact="global.$LMP_Shortages.keys.count" counter="$bi">
+            <set_value name="$bk" exact="global.$LMP_Shortages.keys.{$bi}"/>
+            <set_value name="$entry" exact="global.$LMP_Shortages.{$bk}"/>
+            <append_to_list name="$candidates" exact="table[$site = $entry.$site, $ware = $entry.$ware, $qty = $entry.$qty, $offer = $entry.$offer, $type = 'BUILD']"/>
+          </do_all>
+        </do_if>
+        <run_actions ref="md.LMP_StationDemand.LMP_ScanAgedStationOffers" result="$posNeeds">
+          <param name="ship" value="$ship"/>
+        </run_actions>
+        <do_if value="$posNeeds?">
+          <do_for_each name="$pos" in="$posNeeds">
+            <append_to_list name="$candidates" exact="$pos"/>
+          </do_for_each>
+        </do_if>
+        <do_if value="$candidates.count == 0">
           <return value="false"/>
         </do_if>
-        <!-- Never fabricate demand: source must report a positive shortage. -->
-        <do_if value="not global.$LMP_Shortages? or global.$LMP_Shortages.keys.count == 0">
-          <return value="false"/>
-        </do_if>
-        <!-- Search all shortages, not just the first listed ware/site.
-             Each attempt uses live buyer/seller offers. This also avoids
-             stalling all sites because one ware has no supplier. -->
+        <!-- One selected trip only. The loop still skips unfulfillable buyers
+             and then continues down the age-sorted POS list. -->
         <set_value name="$found" exact="false"/>
-        <do_all exact="global.$LMP_Shortages.keys.count" counter="$di">
-          <set_value name="$sk" exact="global.$LMP_Shortages.keys.{$di}"/>
-          <set_value name="$site" exact="global.$LMP_Shortages.{$sk}.$site"/>
-          <set_value name="$ware" exact="global.$LMP_Shortages.{$sk}.$ware"/>
-          <set_value name="$qty" exact="global.$LMP_Shortages.{$sk}.$qty"/>
-          <set_value name="$targetOffer" exact="global.$LMP_Shortages.{$sk}.$offer"/>
+        <do_all exact="$candidates.count" counter="$di">
+          <set_value name="$need" exact="$candidates.{$di}"/>
+          <set_value name="$site" exact="$need.$site"/>
+          <set_value name="$ware" exact="$need.$ware"/>
+          <set_value name="$qty" exact="$need.$qty"/>
+          <set_value name="$targetOffer" exact="$need.$offer"/>
           <do_if value="not $site? or not $ware? or not $targetOffer? or not $targetOffer.exists or $qty le 0">
             <continue/>
           </do_if>
