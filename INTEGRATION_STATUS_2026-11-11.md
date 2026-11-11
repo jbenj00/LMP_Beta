@@ -44,3 +44,14 @@ This is a substantial integration increment, but ACTIVE trader handoff, station-
 - Does not yet expire stale age entries or provide GT MK1-style fallback selling.
 
 No in-game execution or compatibility result is claimed.
+
+## Current approved LMP operating model (supersedes earlier ACTIVE plans)
+
+- **LMP-owned ships only.** Ships are explicitly assigned to LMP; no borrowing existing Galaxy Trader ships.
+- **PASSIVE:** dedicated construction gap-filler traders, with reservations, completed-trip reconciliation and safe stop.
+- **MK3 Wing:** LMP-managed Universal Trader wing with a commander and coordinated subordinate cargo. Home system/home station preferences and familiar GT-style trading toggles are required.
+- **GT pilot progression:** pilot-bound XP/level remains in the existing GT data; LMP must not reset or overwrite it.
+- **GT takeover is removed from scope.** Legacy ACTIVE takeover logic stays disabled and new ACTIVE enrollment is rejected.
+- **Implementation gap:** the existing experimental Wing bridge is still GT-MK3-order-dependent. It is NOT proof of an independent LMP MK3 executor and must be replaced or isolated before that capability is claimed.
+- **Testing:** source/CI checks do not establish in-game execution, save safety, or compatibility with Rebirth(ed).
+
