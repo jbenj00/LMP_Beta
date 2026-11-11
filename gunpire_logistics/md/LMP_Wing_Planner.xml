@@ -57,7 +57,8 @@
         <do_if value="not $withinScope or not $ware? or not $ware.volume? or $ware.volume le 0 or not $quantity? or $quantity le 0">
           <return value="false"/>
         </do_if>
-        <set_value name="$needs" exact="[table[$ware = $ware, $qty = $quantity]]"/>
+        <set_value name="$needs" exact="[]"/>
+        <append_to_list name="$needs" exact="table[$ware = $ware, $qty = $quantity]"/>
         <run_actions ref="md.LMP_Wing_Planner.LMP_PlanWingCargo" result="$plan">
           <param name="commander" value="$commander"/>
           <param name="demands" value="$needs"/>
