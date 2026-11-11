@@ -52,15 +52,18 @@
           <!-- GT HomeFleetProfile uses class-specific plus universal volume.
                Never count universal capacity twice for one ware. -->
           <set_value name="$capacity" exact="0"/>
-          <do_if value="$ware.transport == transport.container">
+          <do_if value="$ware.waretransport == waretransport.container">
             <set_value name="$capacity" exact="$ship.cargo.free.container + $ship.cargo.free.universal"/>
           </do_if>
-          <do_elseif value="$ware.transport == transport.solid">
+          <do_elseif value="$ware.waretransport == waretransport.solid">
             <set_value name="$capacity" exact="$ship.cargo.free.solid + $ship.cargo.free.universal"/>
           </do_elseif>
-          <do_elseif value="$ware.transport == transport.liquid">
+          <do_elseif value="$ware.waretransport == waretransport.liquid">
             <set_value name="$capacity" exact="$ship.cargo.free.liquid + $ship.cargo.free.universal"/>
           </do_elseif>
+          <do_if value="$ship.cargo.{$ware}.max le 0">
+            <continue/>
+          </do_if>
           <set_value name="$fits" exact="($capacity / $volume)i"/>
           <set_value name="$qty" exact="[$fits, $remaining].min"/>
           <do_if value="$qty le 0">
