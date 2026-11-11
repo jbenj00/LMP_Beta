@@ -30,5 +30,26 @@ for expected in (
     "LMP_PreviewMK3WingTrade", "LMP_ValidateWingQuote",
 ):
     assert expected in libraries, f"missing library: {expected}"
+# LMP-only MK3 wing enrollment must be separate from GT's experimental bridge.
+native = ET.parse(ROOT / "LMP_Wing.xml").getroot()
+def wing_library(name):
+    found = [n for n in native.iter("library") if n.get("name") == name]
+    assert len(found) == 1, name
+    return found[0]
+enroll = wing_library("LMP_RegisterDedicatedWing")
+enroll_xml = ET.tostring(enroll, encoding="unicode")
+assert "GUNPIRE_IsGTManagedShip" in enroll_xml
+assert "LMP_ShipRegistry.LMP_EnrollShip" in enroll_xml
+assert "LMP_WING_CONFIG_ONLY" in enroll_xml
+assert "'WING'" in enroll_xml
+assert "GalaxyTraderMK3" not in enroll_xml, "Dedicated LMP wings cannot require GT's default order"
+assert not list(enroll.iter("create_order")) and not list(enroll.iter("create_trade_order"))
+home = wing_library("LMP_SetDedicatedWingHome")
+home_xml = ET.tostring(home, encoding="unicode")
+assert "$mode == 'SECTOR'" in home_xml and "$mode == 'STATION'" in home_xml and "$mode == 'NONE'" in home_xml
+assert "$home.isclass.sector" in home_xml and "$home.isclass.station" in home_xml
+assert "LMP_WING_CONFIG_ONLY" in home_xml and "$role != 'WING'" in home_xml
+for node in home.iter():
+    assert node.tag not in ("create_order", "cancel_order", "create_trade_order", "remove_value"), "Home config cannot mutate ship work"
 print(f"PASS: {len(WING)} parsed wing scripts, {len(libraries)} libraries; no trade/order mutations")
 print("NOTE: This is a static parse / invariant check, not XSD validation or an in-game test.")
