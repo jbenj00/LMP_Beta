@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mdscript name="LMP_Wing_Planner" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../x4_scripting_ref/schemas/md.xsd">
+  <cues>
+    <!-- Pure allocation plan: no ship orders, no inventory changes, no
+         external GT calls. Its result MUST NOT be treated as a committed job.
+         demands: list of table[$ware = ware, $qty = positive integer].
+         Caller supplies validated live demand and market offers separately. -->
+    <library name="LMP_PlanWingCargo" purpose="run_actions">
+      <params>
+        <param name="commander"/>
+        <param name="demands"/>
+      </params>
+      <actions>
+        <run_actions ref="md.LMP_Wing.LMP_GetWingCapacity" result="$wing">
+          <param name="commander" value="$commander"/>
+        </run_actions>
+        <do_if value="not $wing or not $demands? or $demands.count == 0">
+          <return value="false"/>
+        </do_if>
+        <set_value name="$assignments" exact="[]"/>
+        <set_value name="$remaining" exact="[]"/>
+        <set_value name="$allocated" exact="0"/>
+        <set_value name="$missing" exact="0"/>
+        <!-- Copy per-ship working capacities: the wing snapshot is read-only. -->
+        <set_value name="$slots" exact="[]"/>
+        <do_for_each name="$ship" in="$wing.$eligible">
+          <set_value name="$space" exact="$ship.cargo.free.container + $ship.cargo.free.universal"/>
+          <append_to_list name="$slots" exact="table[$ship = $ship, $remainingVolume = $space]"/>
+        </do_for_each>
+        <do_for_each name="$demand" in="$demands">
+          <do_if value="not $demand.$ware? or not $demand.$qty? or $demand.$qty le 0 or $demand.$ware.volume le 0">
+            <return value="false"/>
+          </do_if>
+          <set_value name="$need" exact="$demand.$qty"/>
+          <set_value name="$ware" exact="$demand.$ware"/>
+          <!-- Greedy volume fill produces a deterministic per-ship work
+               proposal. It does not yet optimize supplier path or prices. -->
+          <do_for_each name="$slot" in="$slots">
+            <do_if value="$need le 0">
+              <break/>
+            </do_if>
+            <set_value name="$ship" exact="$slot.$ship"/>
+            <set_value name="$fits" exact="($slot.$remainingVolume / $ware.volume)i"/>
+            <set_value name="$take" exact="[$need, $fits].min"/>
+            <do_if value="$take le 0">
+              <continue/>
+            </do_if>
+            <append_to_list name="$assignments" exact="table[$ship = $ship, $ware = $ware, $qty = $take, $volume = $take * $ware.volume]"/>
+            <set_value name="$slot.$remainingVolume" exact="$slot.$remainingVolume - ($take * $ware.volume)"/>
+            <set_value name="$need" exact="$need - $take"/>
+            <set_value name="$allocated" exact="$allocated + $take"/>
+          </do_for_each>
+          <do_if value="$need gt 0">
+            <append_to_list name="$remaining" exact="table[$ware = $ware, $qty = $need]"/>
+            <set_value name="$missing" exact="$missing + $need"/>
+          </do_if>
+        </do_for_each>
+        <return value="table[$commander = $commander, $assignments = $assignments, $unallocated = $remaining, $allocatedUnits = $allocated, $missingUnits = $missing, $wingCapacity = $wing.$capacity, $wingFree = $wing.$eligibleFree]"/>
+      </actions>
+    </library>
+  </cues>
+</mdscript>
