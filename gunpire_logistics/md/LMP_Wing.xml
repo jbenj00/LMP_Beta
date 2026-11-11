@@ -277,8 +277,12 @@
         <do_for_each name="$ship" in="$ships">
           <set_value name="$capacity" exact="$ship.cargo.capacity.all"/>
           <set_value name="$free" exact="$ship.cargo.free.all"/>
-          <set_value name="$totalCapacity" exact="$totalCapacity + $capacity"/>
-          <set_value name="$totalFree" exact="$totalFree + $free"/>
+          <!-- Legacy observation still reports the whole native topology;
+               dedicated LMP reports only explicitly eligible ship volume. -->
+          <do_if value="global.$LMP_Wings.{$commander}.$state != 'LMP_WING_CONFIG_ONLY'">
+            <set_value name="$totalCapacity" exact="$totalCapacity + $capacity"/>
+            <set_value name="$totalFree" exact="$totalFree + $free"/>
+          </do_if>
           <!-- Commander may run MK3; subordinates with their own GT default
                orders are not eligible for a coordinated wing transport leg. -->
           <set_value name="$usable" exact="$capacity gt 0"/>
@@ -325,6 +329,10 @@
           <do_if value="$usable">
             <append_to_list name="$eligible" exact="$ship"/>
             <set_value name="$eligibleFree" exact="$eligibleFree + $free"/>
+            <do_if value="global.$LMP_Wings.{$commander}.$state == 'LMP_WING_CONFIG_ONLY'">
+              <set_value name="$totalCapacity" exact="$totalCapacity + $capacity"/>
+              <set_value name="$totalFree" exact="$totalFree + $free"/>
+            </do_if>
           </do_if>
           <do_else>
             <append_to_list name="$skipped" exact="$ship"/>
