@@ -54,7 +54,16 @@
         <do_if value="not $ship? or not @$ship.exists or not $ship.isplayerowned or not $ship.isclass.{class.ship} or not $ship.commander? or $ship.commander != $commander">
           <continue/>
         </do_if>
-        <do_if value="not $ship.defaultorder? or $ship.defaultorder.id != 'Assist' or ($ship.tradeorders? and $ship.tradeorders.count gt 0)">
+        <!-- Fleet Doctrine Escort maps to a native Defence assignment;
+             demanding Assist would reject armed escorts. Exclude GT's
+             protected trader behaviors, including an Assist baseorder. -->
+        <do_if value="$ship.tradeorders? and $ship.tradeorders.count gt 0">
+          <continue/>
+        </do_if>
+        <do_if value="$ship.defaultorder? and global.$GT_ProtectedOrderIDs? and global.$GT_ProtectedOrderIDs.indexof.{$ship.defaultorder.id}">
+          <continue/>
+        </do_if>
+        <do_if value="$ship.defaultorder? and $ship.defaultorder.id == 'Assist' and $ship.defaultorder.$baseorder? and global.$GT_ProtectedOrderIDs? and global.$GT_ProtectedOrderIDs.indexof.{$ship.defaultorder.$baseorder.id}">
           <continue/>
         </do_if>
         <do_if value="not $ship.cargo.list? or $ship.cargo.list.count gt 0 or $ship.cargo.{$ware}.max le 0">
