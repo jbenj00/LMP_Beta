@@ -15,7 +15,10 @@
         </do_if>
         <set_value name="$wc" exact="$data.$Commander"/>
         <set_value name="$ship" exact="$data.$Ship"/>
-        <do_if value="not $wc.exists or not global.$LMP_Wings? or not global.$LMP_Wings.{$wc}? or not $ship.commander? or $ship.commander != $wc">
+        <!-- The AI worker already verified membership before issuing
+             orders. By this event the ship may have detached to trade,
+             so do not require its commander pointer still to match. -->
+        <do_if value="not $wc.exists or not global.$LMP_Wings? or not global.$LMP_Wings.{$wc}? or not $ship.isplayerowned">
           <return/>
         </do_if>
         <do_if value="not global.$LMP_WingLoads?">
