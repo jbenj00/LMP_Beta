@@ -10,12 +10,18 @@
           <!-- Do not remove entries while iterating this live table. -->
           <set_value name="$pendingStops" exact="[]"/>
           <set_value name="$pendingAudits" exact="[]"/>
+          <set_value name="$pendingTails" exact="[]"/>
           <do_all exact="global.$LMP_Ships.keys.count" counter="$i">
             <set_value name="$ship" exact="global.$LMP_Ships.keys.{$i}"/>
             <do_if value="not $ship.exists">
               <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'MISSING_RECONCILE'"/>
             </do_if>
             <do_elseif value="global.$LMP_Ships.{$ship}.$job? and global.$LMP_Ships.{$ship}.$job != null">
+              <!-- Previously recorded delivery completion can be verified
+                   after load without fabricating a new completion event. -->
+              <do_if value="global.$LMP_Ships.{$ship}.$state == 'DELIVERY_RECONCILE'">
+                <append_to_list name="$pendingTails" exact="$ship"/>
+              </do_if>
               <!-- A previously observed delivery-completed event is the
                    only state safe for tail reconciliation after load.
                    Never infer successful delivery from an empty hold alone. -->
@@ -32,6 +38,18 @@
               <append_to_list name="$pendingStops" exact="$ship"/>
             </do_elseif>
           </do_all>
+          <!-- Execute after registry enumeration; resolution can clear
+               saved job state, but must not mutate this iteration. -->
+          <do_for_each name="$tailShip" in="$pendingTails">
+            <run_actions ref="md.LMP_Recovery.LMP_ReconcileDeliveryTail" result="$tailDone">
+              <param name="ship" value="$tailShip"/>
+            </run_actions>
+            <do_if value="$tailDone and global.$LMP_Ships.{$tailShip}? and global.$LMP_Ships.{$tailShip}.$stopRequested? and global.$LMP_Ships.{$tailShip}.$stopRequested">
+              <run_actions ref="md.LMP_ShipRegistry.LMP_FinalizePassiveStop" result="$released">
+                <param name="ship" value="$tailShip"/>
+              </run_actions>
+            </do_if>
+          </do_for_each>
           <do_for_each name="$auditShip" in="$pendingAudits">
             <run_actions ref="md.LMP_Recovery.LMP_AuditLoadedTrip" result="$checked">
               <param name="ship" value="$auditShip"/>
