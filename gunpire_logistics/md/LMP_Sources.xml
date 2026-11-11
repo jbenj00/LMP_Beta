@@ -26,14 +26,32 @@
             <do_if value="$filter == 'npc' and $off.seller.owner == faction.player">
               <continue/>
             </do_if>
-            <append_to_list name="$filtered" exact="$off"/>
+            <do_if value="not $off.available or $off.amount le 0 or $ship.gatedistance.{$off.seller} lt 0 or $off.seller.ishostileto.{faction.player}">
+              <continue/>
+            </do_if>
+            <do_if value="@$off.seller.sector.isblacklisted.{blacklisttype.sectoractivity}.{blacklistgroup.civilian}.{$ship}
+                          or @$off.seller.sector.isblacklisted.{blacklisttype.sectortravel}.{blacklistgroup.civilian}.{$ship}
+                          or $off.seller.isblacklisted.{blacklisttype.objectactivity}.{blacklistgroup.civilian}.{$ship}">
+              <continue/>
+            </do_if>
+            <!-- VAS ClosestSellOffer ranking adapted to supplier offers:
+                 current ship location, gate distance then physical distance. -->
+            <append_to_list name="$filtered" exact="table[$offer = $off, $gates = $ship.gatedistance.{$off.seller}, $physical = $off.seller.distanceto.{$ship}]"/>
           </do_all>
         </do_if>
-        <run_actions ref="GUNPIRE_Log">
+        <do_if value="$filtered.count gt 1">
+          <sort_list list="$filtered" sortbyvalue="loop.element.$physical"/>
+          <sort_list list="$filtered" sortbyvalue="loop.element.$gates"/>
+        </do_if>
+        <set_value name="$ranked" exact="[]"/>
+        <do_for_each name="$item" in="$filtered">
+          <append_to_list name="$ranked" exact="$item.$offer"/>
+        </do_for_each>
+        <run_actions ref="md.GUNPIRE_Core.GUNPIRE_Log">
           <param name="component" value="'SOURCE'"/>
           <param name="message" value="'find_sell_offer returned ' + $filtered.count + ' valid offers (filter=' + $filter + ')'"/>
         </run_actions>
-        <return value="$filtered"/>
+        <return value="$ranked"/>
       </actions>
     </library>
   </cues>
