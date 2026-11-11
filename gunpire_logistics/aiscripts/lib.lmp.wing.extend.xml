@@ -6,6 +6,8 @@
     <param name="sellStation" default="null"/>
     <param name="ware" default="null"/>
     <param name="additionalTarget" default="0"/>
+    <param name="commanderAmount" default="0"/>
+    <param name="commanderUnitPrice" default="0"/>
     <param name="buyInternal" default="false"/>
     <param name="sellInternal" default="false"/>
   </params>
@@ -46,7 +48,11 @@
       <run_script name="'lib.gt.pay.account'" result="$wingAccount">
         <param name="ship" value="$commander"/>
       </run_script>
-      <set_value name="$wingCash" exact="$wingAccount.$Money - 1000Cr"/>
+      <!-- GT has queued its own purchase, not necessarily deducted
+           credits yet; account for that commitment before assigning
+           additional escorts from the same wallet. -->
+      <set_value name="$commanderCommittedCost" exact="if $buyInternal then 0 else ($commanderAmount * $commanderUnitPrice)"/>
+      <set_value name="$wingCash" exact="$wingAccount.$Money - 1000Cr - $commanderCommittedCost"/>
       <do_for_each name="$ship" in="$commander.subordinates">
         <do_if value="$remaining le 0">
           <break/>
@@ -91,6 +97,9 @@
           <continue/>
         </do_if>
         <set_value name="$fits" exact="($freeVolume / $ware.volume)i"/>
+        <do_if value="not $source.offeramount.{$ship}? or not $sink.offeramount.{$ship}?">
+          <continue/>
+        </do_if>
         <set_value name="$sellerUnits" exact="$source.offeramount.{$ship}"/>
         <set_value name="$buyerUnits" exact="$sink.offeramount.{$ship}"/>
         <set_value name="$qty" exact="[$remaining, $fits, $sellerUnits, $buyerUnits].min"/>
