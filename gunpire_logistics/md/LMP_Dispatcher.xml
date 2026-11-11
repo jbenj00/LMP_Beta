@@ -42,6 +42,9 @@
         <do_if value="not global.$LMP_Ships? or not global.$LMP_Ships.{$ship}? or global.$LMP_Ships.{$ship}.$role != 'PASSIVE'">
           <return value="false"/>
         </do_if>
+        <do_if value="global.$LMP_Ships.{$ship}.$stopRequested? and global.$LMP_Ships.{$ship}.$stopRequested">
+          <return value="false"/>
+        </do_if>
         <do_if value="global.$LMP_Ships.{$ship}.$job? and global.$LMP_Ships.{$ship}.$job != null">
           <return value="false"/>
         </do_if>
@@ -83,46 +86,53 @@
         <do_if value="not global.$LMP_Shortages? or global.$LMP_Shortages.keys.count == 0">
           <return value="false"/>
         </do_if>
-        <set_value name="$sk" exact="global.$LMP_Shortages.keys.{1}"/>
-        <set_value name="$site" exact="global.$LMP_Shortages.{$sk}.$site"/>
-        <set_value name="$ware" exact="global.$LMP_Shortages.{$sk}.$ware"/>
-        <set_value name="$qty" exact="global.$LMP_Shortages.{$sk}.$qty"/>
-        <set_value name="$targetOffer" exact="global.$LMP_Shortages.{$sk}.$offer"/>
-        <!-- Reduce outstanding need by reservations from other in-flight trips. -->
-        <do_if value="global.$LMP_Reservations?">
-          <do_all exact="global.$LMP_Reservations.keys.count" counter="$ri">
-            <set_value name="$rk" exact="global.$LMP_Reservations.keys.{$ri}"/>
-            <set_value name="$res" exact="global.$LMP_Reservations.{$rk}"/>
-            <do_if value="$res.$site == $site and $res.$ware == $ware">
-              <set_value name="$qty" exact="$qty - $res.$qty"/>
-            </do_if>
-          </do_all>
-        </do_if>
-        <do_if value="not $site? or not $ware? or not $targetOffer? or not $targetOffer.exists or $qty le 0">
-          <return value="false"/>
-        </do_if>
-        <run_actions ref="md.LMP_Sources.LMP_FindSellOffers" result="$offers">
-          <param name="ship" value="$ship"/>
-          <param name="ware" value="$ware"/>
-          <param name="filter" value="'both'"/>
-        </run_actions>
-        <do_if value="not $offers? or $offers.count == 0">
-          <run_actions ref="md.GUNPIRE_Core.GUNPIRE_Log">
-            <param name="component" value="'DISPATCH'"/>
-            <param name="message" value="'No sell offers for selected ware'"/>
+        <!-- Search all shortages, not just the first listed ware/site.
+             Each attempt uses live buyer/seller offers. This also avoids
+             stalling all sites because one ware has no supplier. -->
+        <set_value name="$found" exact="false"/>
+        <do_all exact="global.$LMP_Shortages.keys.count" counter="$di">
+          <set_value name="$sk" exact="global.$LMP_Shortages.keys.{$di}"/>
+          <set_value name="$site" exact="global.$LMP_Shortages.{$sk}.$site"/>
+          <set_value name="$ware" exact="global.$LMP_Shortages.{$sk}.$ware"/>
+          <set_value name="$qty" exact="global.$LMP_Shortages.{$sk}.$qty"/>
+          <set_value name="$targetOffer" exact="global.$LMP_Shortages.{$sk}.$offer"/>
+          <do_if value="not $site? or not $ware? or not $targetOffer? or not $targetOffer.exists or $qty le 0">
+            <continue/>
+          </do_if>
+          <!-- Count other in-flight trips; no double booking. -->
+          <do_if value="global.$LMP_Reservations?">
+            <do_all exact="global.$LMP_Reservations.keys.count" counter="$ri">
+              <set_value name="$rk" exact="global.$LMP_Reservations.keys.{$ri}"/>
+              <set_value name="$res" exact="global.$LMP_Reservations.{$rk}"/>
+              <do_if value="$res.$site == $site and $res.$ware == $ware">
+                <set_value name="$qty" exact="$qty - $res.$qty"/>
+              </do_if>
+            </do_all>
+          </do_if>
+          <do_if value="$qty le 0">
+            <continue/>
+          </do_if>
+          <run_actions ref="md.LMP_Sources.LMP_FindSellOffers" result="$offers">
+            <param name="ship" value="$ship"/>
+            <param name="ware" value="$ware"/>
+            <param name="filter" value="'both'"/>
           </run_actions>
-          <return value="false"/>
-        </do_if>
-        <set_value name="$offer" exact="$offers.{1}"/>
-        <set_value name="$qty" exact="[$qty, $offer.amount].min"/>
-        <set_value name="$qty" exact="[$qty, $targetOffer.amount].min"/>
-        <set_value name="$maxCargoQty" exact="($ship.cargo.free.container / $ware.volume).floor"/>
-        <set_value name="$qty" exact="[$qty, $maxCargoQty].min"/>
-        <do_if value="$qty le 0">
-          <run_actions ref="md.GUNPIRE_Core.GUNPIRE_Log">
-            <param name="component" value="'DISPATCH'"/>
-            <param name="message" value="'Offer amount zero; skipping'"/>
-          </run_actions>
+          <do_if value="not $offers? or $offers.count == 0">
+            <continue/>
+          </do_if>
+          <set_value name="$offer" exact="$offers.{1}"/>
+          <set_value name="$qty" exact="[$qty, $offer.amount].min"/>
+          <set_value name="$qty" exact="[$qty, $targetOffer.amount].min"/>
+          <!-- X4 cargo transport capacity, per VAS run planner. -->
+          <set_value name="$maxCargoQty" exact="$ship.cargo.free.container / $ware.volume"/>
+          <set_value name="$qty" exact="[$qty, $maxCargoQty].min"/>
+          <do_if value="$qty le 0">
+            <continue/>
+          </do_if>
+          <set_value name="$found" exact="true"/>
+          <break/>
+        </do_all>
+        <do_if value="not $found">
           <return value="false"/>
         </do_if>
         <set_value name="$job" exact="'JOB-' + $ship.idcode"/>
