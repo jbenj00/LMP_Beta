@@ -96,5 +96,29 @@ commands = ET.parse(ROOT / "LMP_Wing_Commands.xml").getroot()
 unreg = [n for n in commands.iter("cue") if n.get("name") == "LMP_Wing_CommandUnregister"]
 assert len(unreg) == 1
 assert "LMP_UnregisterDedicatedWing" in ET.tostring(unreg[0], encoding="unicode")
+planner = ET.parse(ROOT / "LMP_Wing_Planner.xml").getroot()
+def planner_library(name):
+    matched = [node for node in planner.iter("library") if node.get("name") == name]
+    assert len(matched) == 1, f"expected one planner library: {name}"
+    return matched[0]
+scope = planner_library("LMP_CheckDedicatedWingRouteScope")
+scope_xml = ET.tostring(scope, encoding="unicode")
+assert "LMP_WING_CONFIG_ONLY" in scope_xml and "$role != 'WING'" in scope_xml
+assert "$seller.sector == $wing.$homeSector" in scope_xml
+assert "$buyer.sector == $wing.$homeSector" in scope_xml
+assert "$seller == $wing.$homeStation" in scope_xml
+assert "$buyer == $wing.$homeStation" in scope_xml
+assert "not $wing.$homeSector.exists" in scope_xml
+preview = planner_library("LMP_PreviewDedicatedWingRoute")
+preview_xml = ET.tostring(preview, encoding="unicode")
+assert "LMP_CheckDedicatedWingRouteScope" in preview_xml
+assert "LMP_PlanWingCargo" in preview_xml
+assert preview_xml.index("LMP_CheckDedicatedWingRouteScope") < preview_xml.index("LMP_PlanWingCargo")
+assert "$quoteOnly = true" in preview_xml
+assert "$requiresMarketValidation = true" in preview_xml
+assert "global.$GT_" not in preview_xml
+for read_only in (scope, preview):
+    for prohibited in ("create_order", "cancel_order", "create_trade_order", "remove_value"):
+        assert not list(read_only.iter(prohibited)), "Independent LMP preview cannot mutate ship state"
 print(f"PASS: {len(WING)} parsed wing scripts, {len(libraries)} libraries; no trade/order mutations")
 print("NOTE: This is a static parse / invariant check, not XSD validation or an in-game test.")
