@@ -11,6 +11,7 @@
       <params>
         <param name="commander"/>
         <param name="trade"/>
+        <param name="excludeCommander" default="false"/>
       </params>
       <actions>
         <run_actions ref="md.LMP_Wing.LMP_GetWingCapacity" result="$wing">
@@ -46,6 +47,11 @@
         <set_value name="$assignments" exact="[]"/>
         <set_value name="$volume" exact="$ware.volume"/>
         <do_for_each name="$ship" in="$wing.$eligible">
+          <!-- Once GT committed its commander order, this is EXTRA capacity
+               only; never quote that cargo hold a second time. -->
+          <do_if value="$excludeCommander and $ship == $commander">
+            <continue/>
+          </do_if>
           <do_if value="$remaining le 0">
             <break/>
           </do_if>
