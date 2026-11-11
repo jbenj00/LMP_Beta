@@ -153,5 +153,15 @@ for branch_name, branch in (("normal completion", on_trade_xml), ("tail recovery
     assert branch.index("LMP_VerifyTripReservation") < branch.index("LMP_Reservations.LMP_Release"), branch_name + " must verify before release"
     assert "RESERVATION_MISMATCH_RECONCILE" in branch
     assert 'name="global.$LMP_Ships.{$ship}.$reservationKey" exact="null"' in branch
+# Recovery status menu is read-only and remains reachable during Stop.
+status = named(menu, "cue", "LMP_PassiveStatusAction")
+status_xml = ET.tostring(status, encoding="unicode")
+menu_actions = ET.tostring(named(menu, "cue", "LMP_AddPassiveActions"), encoding="unicode")
+assert "lmp_passive_status" in menu_actions and "LMP_PassiveStatusAction" in menu_actions
+assert menu_actions.index("lmp_passive_status") < menu_actions.index("$stopRequested"), "Status must remain available during Stop"
+assert "$entry.$state" in status_xml and "$entry.$job" in status_xml
+assert "$ship.tradeorders.count" in status_xml and "$ship.cargo.list.count" in status_xml
+for unsafe in ("create_order", "create_trade_order", "cancel_order", "remove_value"):
+    assert not list(status.iter(unsafe)), "Status menu must not modify cargo, orders or registry"
 print("PASS: PASSIVE stop guards, completion and retry hooks are present")
 print("NOTE: structural tests do not prove X4 runtime behavior")
