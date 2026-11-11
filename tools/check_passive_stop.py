@@ -142,9 +142,7 @@ assert "LMP_ResumeStrandedDelivery" in ET.tostring(tick, encoding="unicode"), "P
 # Completed trades may settle only the matching persisted reservation.
 ledger = named(recovery, "library", "LMP_VerifyTripReservation")
 ledger_xml = ET.tostring(ledger, encoding="unicode")
-assert "$key != ('
-print("NOTE: structural tests do not prove X4 runtime behavior")
- + $entry.$job)" in ledger_xml
+assert "global.$LMP_Reservations.{$key}?" in ledger_xml
 assert "$reservation.$ship != $ship" in ledger_xml
 assert "$reservation.$qty != $entry.$requestedQty" in ledger_xml
 assert not list(ledger.iter("remove_value")) and not list(ledger.iter("cancel_order"))
