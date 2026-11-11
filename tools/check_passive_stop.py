@@ -96,6 +96,11 @@ assert "RECONCILE_ON_LOAD" in audit_xml
 assert "STRANDED_CARGO_RECONCILE" in audit_xml
 assert "MISSING_ORDER_RECONCILE" in audit_xml
 assert "CARGO_UNKNOWN_RECONCILE" in audit_xml
+assert "RESERVATION_MISSING_RECONCILE" in audit_xml
+assert "RESERVATION_MISMATCH_RECONCILE" in audit_xml
+assert "global.$LMP_Reservations.{$key}.$ship != $ship" in audit_xml
+assert "global.$LMP_Reservations.{$key}?" in audit_xml
+assert audit_xml.index("state != 'RECONCILE_ON_LOAD'") < audit_xml.index("RESERVATION_MISSING_RECONCILE"), "Audit may not overwrite terminal states"
 assert "$ship.cargo.list.count gt 0" in audit_xml
 assert "$ship.tradeorders.count gt 0" in audit_xml
 assert "$stopRequested" in audit_xml
