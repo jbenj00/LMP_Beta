@@ -28,7 +28,52 @@
         <do_if value="not global.$GUNPIRE_Safety.$enforce_reservations">
           <return value="false"/>
         </do_if>
+        <do_if value="not $ship? or not $ship.exists or not $site? or not $ware? or not $qty? or $qty le 0 or not $job? or $job == 'none'">
+          <return value="false"/>
+        </do_if>
+        <do_if value="not global.$LMP_Reservations?">
+          <set_value name="global.$LMP_Reservations" exact="table[]"/>
+        </do_if>
+        <set_value name="$key" exact="'
+        <set_value name="global.$LMP_Reservations.{$key}.$ship" exact="$ship"/>
+        <set_value name="global.$LMP_Reservations.{$key}.$site" exact="$site"/>
+        <set_value name="global.$LMP_Reservations.{$key}.$ware" exact="$ware"/>
+        <set_value name="global.$LMP_Reservations.{$key}.$qty" exact="$qty"/>
+        <set_value name="global.$LMP_Reservations.{$key}.$state" exact="'RESERVED'"/>
+        <run_actions ref="md.GUNPIRE_Core.GUNPIRE_Log">
+          <param name="component" value="'RESERVE'"/>
+          <param name="job" value="$job"/>
+          <param name="message" value="'Reserved ' + $qty + ' of ware for ' + (if $ship? then $ship.idcode else 'null')"/>
+        </run_actions>
+        <return value="true"/>
+      </actions>
+    </library>
+
+    <library name="LMP_Release" purpose="run_actions">
+      <params>
+        <param name="job"/>
+      </params>
+      <actions>
         <set_value name="$key" exact="'$' + $job"/>
+        <do_if value="global.$LMP_Reservations.{$key}?">
+          <remove_value name="global.$LMP_Reservations.{$key}"/>
+          <run_actions ref="md.GUNPIRE_Core.GUNPIRE_Log">
+            <param name="component" value="'RESERVE'"/>
+            <param name="job" value="$job"/>
+            <param name="message" value="'Released reservation'"/>
+          </run_actions>
+        </do_if>
+        <return value="true"/>
+      </actions>
+    </library>
+  </cues>
+</mdscript>
+ + $job"/>
+        <!-- Duplicate job IDs are never silently overwritten. An existing
+             reservation may still belong to a failed/in-flight purchase. -->
+        <do_if value="global.$LMP_Reservations.{$key}?">
+          <return value="false"/>
+        </do_if>
         <set_value name="global.$LMP_Reservations.{$key}" exact="table[]"/>
         <set_value name="global.$LMP_Reservations.{$key}.$ship" exact="$ship"/>
         <set_value name="global.$LMP_Reservations.{$key}.$site" exact="$site"/>
