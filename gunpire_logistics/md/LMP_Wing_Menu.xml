@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mdscript name="LMP_Wing_Menu" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../refs/x4_scripting_ref/schemas/md.xsd">
+  <cues>
+    <!-- Exact GT 1.0.4 pattern from GT_Context_Rename.xml:
+         Interact_Menu_API.Get_Actions -> Add_Action -> callback cue.
+         Only the SELECTED player-owned MK3 commander is eligible.
+         Does not create/reassign a subordinate or change GT order. -->
+    <cue name="LMP_Wing_MenuAddActions" instantiate="true">
+      <conditions><event_cue_signalled cue="md.Interact_Menu_API.Get_Actions"/></conditions>
+      <actions>
+        <set_value name="$ship" exact="event.param.$object"/>
+        <do_if value="not $ship? or not $ship.exists or not $ship.isclass.{class.ship} or not $ship.isplayerowned or not $ship.defaultorder? or $ship.defaultorder.id != 'GalaxyTraderMK3'">
+          <return/>
+        </do_if>
+        <do_if value="not global.$LMP_Wings? or not global.$LMP_Wings.{$ship}?">
+          <signal_cue_instantly cue="md.Interact_Menu_API.Add_Action" param="table[
+            $id = 'lmp_wing_register',
+            $text = 'GUNPIRE: Register MK3 Wing (Preview)',
+            $section = 'gt_actions',
+            $callback = LMP_Wing_RegisterClick
+          ]"/>
+        </do_if>
+        <do_else>
+          <do_if value="global.$LMP_Wings.{$ship}.$executeEnabled? and global.$LMP_Wings.{$ship}.$executeEnabled">
+            <signal_cue_instantly cue="md.Interact_Menu_API.Add_Action" param="table[
+              $id = 'lmp_wing_stop',
+              $text = 'GUNPIRE: Disable MK3 Wing Trading',
+              $section = 'gt_actions',
+              $callback = LMP_Wing_DisableClick
+            ]"/>
+          </do_if>
+          <do_else>
+            <signal_cue_instantly cue="md.Interact_Menu_API.Add_Action" param="table[
+              $id = 'lmp_wing_start',
+              $text = 'GUNPIRE: ENABLE Experimental MK3 Wing Trading',
+              $section = 'gt_actions',
+              $callback = LMP_Wing_EnableClick
+            ]"/>
+          </do_else>
+          <signal_cue_instantly cue="md.Interact_Menu_API.Add_Action" param="table[
+            $id = 'lmp_wing_status',
+            $text = 'GUNPIRE: MK3 Wing Capacity Report',
+            $section = 'gt_actions',
+            $callback = LMP_Wing_StatusClick
+          ]"/>
+        </do_else>
+      </actions>
+    </cue>
+    <cue name="LMP_Wing_RegisterClick" instantiate="true" namespace="this">
+      <conditions><event_cue_signalled/></conditions>
+      <actions>
+        <set_value name="$ship" exact="event.param.$object"/>
+        <run_actions ref="md.LMP_Wing.LMP_RegisterWing" result="$ok">
+          <param name="commander" value="$ship"/>
+        </run_actions>
+        <show_notification text="if $ok then 'GUNPIRE: MK3 wing registered (trading remains OFF)' else 'GUNPIRE: MK3 commander not eligible'" timeout="6s"/>
+      </actions>
+    </cue>
+    <cue name="LMP_Wing_EnableClick" instantiate="true" namespace="this">
+      <conditions><event_cue_signalled/></conditions>
+      <actions>
+        <set_value name="$ship" exact="event.param.$object"/>
+        <do_if value="not $ship? or not $ship.exists or not $ship.defaultorder? or $ship.defaultorder.id != 'GalaxyTraderMK3' or not global.$LMP_Wings? or not global.$LMP_Wings.{$ship}?">
+          <return/>
+        </do_if>
+        <run_actions ref="md.LMP_Wing.LMP_GetWingCapacity" result="$capacity">
+          <param name="commander" value="$ship"/>
+        </run_actions>
+        <do_if value="not $capacity or $capacity.$eligible.count le 1">
+          <show_notification text="'GUNPIRE: No eligible subordinate cargo ships'" timeout="6s"/>
+          <return/>
+        </do_if>
+        <!-- Explicit, opt-in test switch. Does not retroactively modify the
+             commander's already queued trade. Next GT MK3 trade only. -->
+        <set_value name="global.$LMP_Wing_ExecuteEnabled" exact="true"/>
+        <set_value name="global.$LMP_Wings.{$ship}.$executeEnabled" exact="true"/>
+        <show_notification text="'GUNPIRE: EXPERIMENTAL MK3 wing trading ON (next trade)'" timeout="6s"/>
+      </actions>
+    </cue>
+    <cue name="LMP_Wing_DisableClick" instantiate="true" namespace="this">
+      <conditions><event_cue_signalled/></conditions>
+      <actions>
+        <set_value name="$ship" exact="event.param.$object"/>
+        <do_if value="global.$LMP_Wings? and global.$LMP_Wings.{$ship}?">
+          <set_value name="global.$LMP_Wings.{$ship}.$executeEnabled" exact="false"/>
+        </do_if>
+        <!-- No queued ship orders are cancelled by toggling OFF. -->
+        <show_notification text="'GUNPIRE: MK3 wing trading OFF; existing orders finish'" timeout="6s"/>
+      </actions>
+    </cue>
+    <cue name="LMP_Wing_StatusClick" instantiate="true" namespace="this">
+      <conditions><event_cue_signalled/></conditions>
+      <actions>
+        <set_value name="$ship" exact="event.param.$object"/>
+        <run_actions ref="md.LMP_Wing.LMP_ReportWing" result="$stats">
+          <param name="commander" value="$ship"/>
+        </run_actions>
+        <do_if value="$stats">
+          <show_notification text="'GUNPIRE MK3 Wing: ' + $stats.$eligible.count + ' eligible ships, ' + $stats.$eligibleFree + ' m3 free'" timeout="8s"/>
+        </do_if>
+      </actions>
+    </cue>
+  </cues>
+</mdscript>
