@@ -8,6 +8,8 @@
     <param name="additionalTarget" default="0"/>
     <param name="commanderAmount" default="0"/>
     <param name="commanderUnitPrice" default="0"/>
+    <param name="minROI" default="0"/>
+    <param name="minAbsoluteProfit" default="0"/>
     <param name="buyInternal" default="false"/>
     <param name="sellInternal" default="false"/>
   </params>
@@ -115,6 +117,16 @@
         </do_if>
         <do_if value="$qty le 0">
           <continue/>
+        </do_if>
+        <!-- Mirror lib.gt.tradematch's own ROI and absolute-profit gates
+             using this subordinate's live prices, not commander prices. -->
+        <do_if value="not $buyInternal">
+          <set_value name="$unitProfit" exact="$sink.unitprice - $source.unitprice"/>
+          <set_value name="$grossProfit" exact="$unitProfit * $qty"/>
+          <set_value name="$roi" exact="if $source.unitprice gt 0 then ($unitProfit * 100) / $source.unitprice else 0"/>
+          <do_if value="$grossProfit lt $minAbsoluteProfit or $roi lt $minROI">
+            <continue/>
+          </do_if>
         </do_if>
         <!-- Same ordering used by GT MK3: reserve delivery first and
              acquisition second. This is not atomic: a failure requires
