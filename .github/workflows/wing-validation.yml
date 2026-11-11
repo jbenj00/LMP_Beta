@@ -1,4 +1,4 @@
-name: GUNPIRE wing XML checks
+name: GUNPIRE X4 integration checks
 
 on:
   workflow_dispatch:
@@ -6,6 +6,11 @@ on:
     paths:
       - 'gunpire_logistics/md/LMP_Wing*.xml'
       - 'tools/check_wing_static.py'
+      - 'tools/check_passive_stop.py'
+      - 'gunpire_logistics/md/LMP_ShipRegistry.xml'
+      - 'gunpire_logistics/md/LMP_ContextMenu.xml'
+      - 'gunpire_logistics/md/LMP_Recovery.xml'
+      - 'gunpire_logistics/md/LMP_TradeCycle.xml'
       - 'tools/check_gt_wing_patch.py'
       - 'gunpire_logistics/aiscripts/lib.lmp.wing.extend.xml'
       - 'gunpire_logistics/aiscripts/lib.lmp.wing.busy.xml'
@@ -26,6 +31,8 @@ jobs:
           python-version: '3.12'
       - name: Parse and enforce non-mutating wing module boundary
         run: python tools/check_wing_static.py
+      - name: Check PASSIVE stop safety and retry wiring
+        run: python tools/check_passive_stop.py
       - name: Check availability of the X4 MD schema
         run: test -s refs/x4_scripting_ref/schemas/md.xsd
       - name: Validate wing MD against X4 schema
@@ -37,7 +44,12 @@ jobs:
           schema_path = Path('refs/x4_scripting_ref/schemas/md.xsd')
           schema = etree.XMLSchema(etree.parse(str(schema_path)))
           failures = []
-          for filename in sorted(Path('gunpire_logistics/md').glob('LMP_Wing*.xml')):
+          files = sorted(Path('gunpire_logistics/md').glob('LMP_Wing*.xml'))
+          files += [Path('gunpire_logistics/md') / name for name in (
+              'LMP_ShipRegistry.xml', 'LMP_ContextMenu.xml',
+              'LMP_Recovery.xml', 'LMP_TradeCycle.xml',
+          )]
+          for filename in files:
               doc = etree.parse(str(filename))
               if not schema.validate(doc):
                   failures.extend(f'{filename}: {error}' for error in schema.error_log)
