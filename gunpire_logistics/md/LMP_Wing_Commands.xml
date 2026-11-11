@@ -33,6 +33,15 @@
         <do_if value="not $ship? or not global.$LMP_Wings? or not global.$LMP_Wings.{$ship}?">
           <return/>
         </do_if>
+        <!-- Dedicated LMP wing has a separate, guarded release path.
+             Unlike the legacy GT observer, it also owns an LMP ship entry. -->
+        <do_if value="global.$LMP_Wings.{$ship}.$state == 'LMP_WING_CONFIG_ONLY'">
+          <run_actions ref="md.LMP_Wing.LMP_UnregisterDedicatedWing" result="$released">
+            <param name="commander" value="$ship"/>
+          </run_actions>
+          <show_notification text="if $released then 'LMP: Dedicated Wing released' else 'LMP: Wing still has assignments or cargo'" timeout="5s"/>
+          <return/>
+        </do_if>
         <!-- Unregister is bookkeeping-only: no ship orders, GT experience,
              fleet commander, or assignments are altered. -->
         <remove_value name="global.$LMP_Wings.{$ship}"/>
