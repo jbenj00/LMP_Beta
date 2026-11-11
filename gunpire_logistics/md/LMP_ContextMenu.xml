@@ -70,6 +70,11 @@
         <run_actions ref="md.LMP_Recovery.LMP_ReconcileDeliveryTail" result="$tailDone">
           <param name="ship" value="$ship"/>
         </run_actions>
+        <!-- Retry only a fully verified stranded shipment. This existing
+             PASSIVE tick provides the retry cadence; no fleet polling. -->
+        <run_actions ref="md.LMP_Recovery.LMP_ResumeStrandedDelivery" result="$resumed">
+          <param name="ship" value="$ship"/>
+        </run_actions>
         <do_if value="global.$LMP_Ships.{$ship}.$stopRequested? and global.$LMP_Ships.{$ship}.$stopRequested">
           <!-- Retry after load or delayed order completion. This never
                cancels a queued trade or releases occupied cargo. -->
