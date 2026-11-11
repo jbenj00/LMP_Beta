@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<aiscript name="lib.lmp.wing.extend" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../refs/x4_scripting_ref/schemas/aiscripts.xsd" version="1">
+  <params>
+    <param name="commander" default="this.ship"/>
+    <param name="buyStation" default="null"/>
+    <param name="sellStation" default="null"/>
+    <param name="ware" default="null"/>
+    <param name="additionalTarget" default="0"/>
+    <param name="buyInternal" default="false"/>
+    <param name="sellInternal" default="false"/>
+  </params>
+  <attention min="unknown">
+    <actions>
+      <!-- Opt-in extension of a trade MK3 ALREADY queued for its commander.
+           Does NOT replace GT's buy/sell search, XP, or its own orders.
+           Never called for sell-only/illegal trades. -->
+      <set_value name="$assigned" exact="0"/>
+      <set_value name="$shipsUsed" exact="0"/>
+      <do_if value="not global.$LMP_Wing_ExecuteEnabled? or not global.$LMP_Wing_ExecuteEnabled or not global.$LMP_Wings? or not global.$LMP_Wings.{$commander}?">
+        <return value="table[$Assigned = 0, $Ships = 0, $Reason = 'disabled']"/>
+      </do_if>
+      <do_if value="not $commander? or not @$commander.exists or not $commander.isplayerowned or not $commander.defaultorder? or $commander.defaultorder.id != 'GalaxyTraderMK3'">
+        <return value="table[$Assigned = 0, $Ships = 0, $Reason = 'commander']"/>
+      </do_if>
+      <do_if value="not $buyStation? or not @$buyStation.exists or not $sellStation? or not @$sellStation.exists or not $ware? or $ware.illegal gt 0 or $additionalTarget le 0">
+        <return value="table[$Assigned = 0, $Ships = 0, $Reason = 'offer']"/>
+      </do_if>
+      <do_if value="not $commander.subordinates?">
+        <return value="table[$Assigned = 0, $Ships = 0, $Reason = 'empty_wing']"/>
+      </do_if>
+      <!-- Global ship count and stand-off decisions are not inferred
+           from a search result. This executes only after the commander
+           created both of its own orders. -->
+      <set_value name="$remaining" exact="$additionalTarget"/>
+      <do_for_each name="$ship" in="$commander.subordinates">
+        <do_if value="$remaining le 0">
+          <break/>
+        </do_if>
+        <do_if value="not $ship? or not @$ship.exists or not $ship.isplayerowned or not $ship.isclass.{class.ship} or not $ship.commander? or $ship.commander != $commander">
+          <continue/>
+        </do_if>
+        <do_if value="not $ship.defaultorder? or $ship.defaultorder.id != 'Assist' or ($ship.tradeorders? and $ship.tradeorders.count gt 0)">
+          <continue/>
+        </do_if>
+        <do_if value="not $ship.cargo.list? or $ship.cargo.list.count gt 0 or $ship.cargo.{$ware}.max le 0">
+          <continue/>
+        </do_if>
+        <!-- Reacquire offers per member, with that member as partner. GT
+             validates commander offers separately; those permissions are
+             not automatically inherited by subordinates. -->
+        <find_sell_offer result="$source" seller="$buyStation" wares="$ware" tradepartner="$ship"/>
+        <find_buy_offer result="$sink" buyer="$sellStation" wares="$ware" tradepartner="$ship"/>
+        <do_if value="not $source? or not $sink? or not $source.available or not $sink.available">
+          <continue/>
+        </do_if>
+        <set_value name="$freeVolume" exact="0"/>
+        <do_if value="$ware.waretransport == waretransport.container">
+          <set_value name="$freeVolume" exact="$ship.cargo.free.container + $ship.cargo.free.universal"/>
+        </do_if>
+        <do_elseif value="$ware.waretransport == waretransport.solid">
+          <set_value name="$freeVolume" exact="$ship.cargo.free.solid + $ship.cargo.free.universal"/>
+        </do_elseif>
+        <do_elseif value="$ware.waretransport == waretransport.liquid">
+          <set_value name="$freeVolume" exact="$ship.cargo.free.liquid + $ship.cargo.free.universal"/>
+        </do_elseif>
+        <do_if value="$freeVolume le 0 or $ware.volume le 0">
+          <continue/>
+        </do_if>
+        <set_value name="$fits" exact="($freeVolume / $ware.volume)i"/>
+        <set_value name="$sellerUnits" exact="$source.offeramount.{$ship}"/>
+        <set_value name="$buyerUnits" exact="$sink.offeramount.{$ship}"/>
+        <set_value name="$qty" exact="[$remaining, $fits, $sellerUnits, $buyerUnits].min"/>
+        <do_if value="$qty le 0">
+          <continue/>
+        </do_if>
+        <!-- Preserve GT's account selection and leave the existing credit
+             reserve. No extra order without budget. Credits are rechecked
+             after each member's purchase order creates its reservation. -->
+        <do_if value="not $buyInternal and $source.unitprice gt 0">
+          <run_script name="'lib.gt.pay.account'" result="$account">
+            <param name="ship" value="$ship"/>
+          </run_script>
+          <set_value name="$spendable" exact="$account.$Money - 1000Cr"/>
+          <set_value name="$affordable" exact="($spendable / $source.unitprice)i"/>
+          <set_value name="$qty" exact="[$qty, $affordable].min"/>
+        </do_if>
+        <do_if value="$qty le 0">
+          <continue/>
+        </do_if>
+        <!-- Same ordering used by GT MK3: reserve delivery first and
+             acquisition second. This is not atomic: a failure requires
+             recovery without deleting existing cargo or orders. -->
+        <create_trade_order object="$ship" tradeoffer="$sink" amount="$qty" immediate="true" internal="$sellInternal"/>
+        <create_trade_order object="$ship" tradeoffer="$source" amount="$qty" immediate="true" internal="$buyInternal"/>
+        <set_value name="$assigned" exact="$assigned + $qty"/>
+        <set_value name="$remaining" exact="$remaining - $qty"/>
+        <set_value name="$shipsUsed" exact="$shipsUsed + 1"/>
+        <debug_text text="'[GUNPIRE][WING][EXEC] WC=' + $commander.idcode + ' ship=' + $ship.idcode + ' qty=' + $qty + ' ware=' + $ware.id" chance="100"/>
+      </do_for_each>
+      <return value="table[$Assigned = $assigned, $Ships = $shipsUsed, $Remaining = $remaining]"/>
+    </actions>
+  </attention>
+</aiscript>
