@@ -18,7 +18,7 @@
         <set_value name="$snap.$captured" exact="player.age"/>
         <set_value name="global.$LMP_Ships.{$ship}.$snapshot" exact="$snap"/>
         <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'SNAPSHOTTED'"/>
-        <run_actions ref="GUNPIRE_Log">
+        <run_actions ref="md.GUNPIRE_Core.GUNPIRE_Log">
           <param name="component" value="'TAKEOVER'"/>
           <param name="message" value="'Snapshot captured for ' + $ship.idcode"/>
         </run_actions>
@@ -32,44 +32,44 @@
       </params>
       <actions>
         <!-- Hard gates -->
-        <run_actions ref="LMP_IsEnrolled" result="$enrolled">
+        <run_actions ref="md.LMP_ShipRegistry.LMP_IsEnrolled" result="$enrolled">
           <param name="ship" value="$ship"/>
         </run_actions>
         <do_if value="not $enrolled">
-          <run_actions ref="GUNPIRE_Log">
+          <run_actions ref="md.GUNPIRE_Core.GUNPIRE_Log">
             <param name="component" value="'TAKEOVER'"/>
             <param name="message" value="'Rejected: not enrolled ' + (if $ship? then $ship.idcode else 'null')"/>
           </run_actions>
           <return value="false"/>
         </do_if>
-        <run_actions ref="GUNPIRE_AllowsRealOrders" result="$allows"/>
+        <run_actions ref="md.GUNPIRE_Config.GUNPIRE_AllowsRealOrders" result="$allows"/>
         <do_if value="not $allows">
-          <run_actions ref="GUNPIRE_Log">
+          <run_actions ref="md.GUNPIRE_Core.GUNPIRE_Log">
             <param name="component" value="'TAKEOVER'"/>
             <param name="message" value="'Rejected: profile forbids real orders'"/>
           </run_actions>
           <return value="false"/>
         </do_if>
         <!-- Cargo / active job check: exact API pending; currently conservative -->
-        <run_actions ref="GUNPIRE_SafetyCheckCargoEmpty" result="$empty">
+        <run_actions ref="md.GUNPIRE_Core.GUNPIRE_SafetyCheckCargoEmpty" result="$empty">
           <param name="ship" value="$ship"/>
         </run_actions>
         <do_if value="not $empty">
           <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'WAITING_FOR_ELIGIBILITY'"/>
-          <run_actions ref="GUNPIRE_Log">
+          <run_actions ref="md.GUNPIRE_Core.GUNPIRE_Log">
             <param name="component" value="'TAKEOVER'"/>
             <param name="message" value="'Waiting for eligibility ' + $ship.idcode"/>
           </run_actions>
           <return value="false"/>
         </do_if>
-        <run_actions ref="LMP_SnapshotShip" result="$ok">
+        <run_actions ref="md.LMP_Takeover.LMP_SnapshotShip" result="$ok">
           <param name="ship" value="$ship"/>
         </run_actions>
         <do_if value="not $ok">
           <return value="false"/>
         </do_if>
         <!-- GT permanent-removal gate: do not assign LMP default order until cooperative path verified -->
-        <run_actions ref="GUNPIRE_Log">
+        <run_actions ref="md.GUNPIRE_Core.GUNPIRE_Log">
           <param name="component" value="'TAKEOVER'"/>
           <param name="message" value="'Snapshot OK but GT cooperative handoff not verified — takeover blocked for ' + $ship.idcode"/>
         </run_actions>
