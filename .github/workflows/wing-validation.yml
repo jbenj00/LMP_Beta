@@ -8,6 +8,7 @@ on:
       - 'tools/check_wing_static.py'
       - 'tools/check_gt_wing_patch.py'
       - 'gunpire_logistics/aiscripts/lib.lmp.wing.extend.xml'
+      - 'gunpire_logistics/aiscripts/lib.lmp.wing.busy.xml'
       - 'gunpire_logistics/aiscripts/order.trade.galaxytrader.xml'
       - '.github/workflows/wing-validation.yml'
 
