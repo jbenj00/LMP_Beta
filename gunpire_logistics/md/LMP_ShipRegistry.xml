@@ -64,6 +64,11 @@
         <do_if value="$gt">
           <return value="false"/>
         </do_if>
+        <!-- Refuse conversion of another default order until its snapshot
+             and restoration are verified. Never overwrite ship behavior. -->
+        <do_if value="$ship.defaultorder? and $ship.defaultorder.id != 'LMP_Passive'">
+          <return value="false"/>
+        </do_if>
         <!-- Do not change a ship that has cargo or a queued job. -->
         <run_actions ref="md.LMP_TradeCycle.LMP_TripIsFullyFinished" result="$idle">
           <param name="ship" value="$ship"/>
