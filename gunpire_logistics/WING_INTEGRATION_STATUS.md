@@ -55,6 +55,11 @@
 - **Do not claim an operational formation convoy:** ships may break formation when native trade orders execute. Fleet Doctrine compatibility and native escort return behavior need in-game testing; do not force formation follow orders over active trade orders. Exact target version is GT 1.0.4, 2026-11-07.
 - **Safe activation for testing:** registration is possible; execution is OFF by default. Enable only in a disposable X4 save with GT 1.0.4 installed and Fleet Doctrine on/off comparison. If anything breaks, disable the wing before saving. This does not cancel already issued trade orders.
 
+## Latest safety corrections
+- The executable `lib.lmp.wing.extend.xml` now maintains one shared seller-availability and buyer-demand budget across all subordinate orders, conservatively subtracting the MK3 commander's committed quantity and every new assignment. This prevents a fleet of four ships from each reserving the same physical stock. The deduction may be conservative if X4 has already reduced the offer amount after the commander's order; runtime testing must confirm timing.
+- `lib.lmp.wing.busy.xml` now **fails closed** when an originally assigned ship is missing or destroyed. The wing cannot silently count missing cargo as delivered and launch another GT job. An explicit wing disable is the manual recovery path until loss/reconciliation handling exists.
+- These changes are to the **experimental, opt-in execution path**, not to vanilla GT MK3 behavior. No formation guarantees or completed in-game tests.
+
 ## Remaining operational work
 1. Validate actual game's **two GT patch targets**, MK3 trade continuation, subordinate order execution, trader XP and escort behavior, with Fleet Doctrine enabled and disabled.
 2. Add coherent convoy staging / synchronized multi-stop routing without overriding active trade orders or writing a parallel GT search engine.
