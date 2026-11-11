@@ -7,15 +7,19 @@
     <actions>
       <!-- Read-only and O(direct wing members). Called only at MK3's
            existing main-loop boundary, not per-frame. Considers only
-           members whose GUNPIRE companion trade was recorded by MD. -->
+           members whose GUNPIRE companion trade was recorded by MD, even\n           if later detached. Persistent pendingMembers is per commander. -->
       <do_if value="not $commander? or not @$commander.exists or not global.$LMP_Wings? or not global.$LMP_Wings.{$commander}? or not global.$LMP_WingLoads?">
         <return value="false"/>
       </do_if>
-      <do_if value="not $commander.subordinates?">
+      <do_if value="not global.$LMP_Wings.{$commander}.$pendingMembers?">
         <return value="false"/>
       </do_if>
-      <do_for_each name="$ship" in="$commander.subordinates">
-        <do_if value="not $ship? or not @$ship.exists or not global.$LMP_WingLoads.{$ship}? or global.$LMP_WingLoads.{$ship}.$commander != $commander">
+      <!-- The original assigned member list remains authoritative even if
+           a subordinate later leaves the fleet. Do not lose its cargo. -->
+      <do_for_each name="$ship" in="global.$LMP_Wings.{$commander}.$pendingMembers.keys">
+        <do_if value="not $ship? or not @$ship.exists">
+          <!-- A destroyed missing member is not automatically recovered.
+               No cargo is restored or fabricated by the wing. -->
           <continue/>
         </do_if>
         <do_if value="$ship.tradeorders? and $ship.tradeorders.count gt 0">
