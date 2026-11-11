@@ -139,5 +139,19 @@ assert not list(resume.iter("remove_value"))
 assert not any("LMP_Reservations.LMP_Release" in x.attrib.get("ref","") for x in resume.iter("run_actions"))
 assert resume_xml.index("<create_trade_order") < resume_xml.index("name=\"global.$LMP_Ships.{$ship}.$state\" exact=\"'DELIVERING'\""), "Mark resumed only after creating order"
 assert "LMP_ResumeStrandedDelivery" in ET.tostring(tick, encoding="unicode"), "Passive tick must retry stranded shipment"
+# Completed trades may settle only the matching persisted reservation.
+ledger = named(recovery, "library", "LMP_VerifyTripReservation")
+ledger_xml = ET.tostring(ledger, encoding="unicode")
+assert "$key != ('
+print("NOTE: structural tests do not prove X4 runtime behavior")
+ + $entry.$job)" in ledger_xml
+assert "$reservation.$ship != $ship" in ledger_xml
+assert "$reservation.$qty != $entry.$requestedQty" in ledger_xml
+assert not list(ledger.iter("remove_value")) and not list(ledger.iter("cancel_order"))
+for branch_name, branch in (("normal completion", on_trade_xml), ("tail recovery", tail_xml)):
+    assert "LMP_VerifyTripReservation" in branch, branch_name + " must check reservation"
+    assert branch.index("LMP_VerifyTripReservation") < branch.index("LMP_Reservations.LMP_Release"), branch_name + " must verify before release"
+    assert "RESERVATION_MISMATCH_RECONCILE" in branch
+    assert 'name="global.$LMP_Ships.{$ship}.$reservationKey" exact="null"' in branch
 print("PASS: PASSIVE stop guards, completion and retry hooks are present")
 print("NOTE: structural tests do not prove X4 runtime behavior")
