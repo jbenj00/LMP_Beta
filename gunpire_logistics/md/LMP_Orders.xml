@@ -21,7 +21,10 @@
           </run_actions>
           <return value="false"/>
         </do_if>
-        <do_if value="$ship.defaultorder? and ($ship.defaultorder.id == 'GalaxyTraderMK3' or $ship.defaultorder.id == 'GalaxyTraderMK1' or $ship.defaultorder.id == 'GalaxyTraderMK2' or $ship.defaultorder.id == 'GalaxyTraderMK4' or $ship.defaultorder.id == 'GalaxyTraderMK42')">
+        <run_actions ref="GUNPIRE_IsGTManagedShip" result="$isGTManaged">
+          <param name="ship" value="$ship"/>
+        </run_actions>
+        <do_if value="$isGTManaged">
           <run_actions ref="GUNPIRE_Log">
             <param name="component" value="'ORDER'"/>
             <param name="job" value="$job"/>

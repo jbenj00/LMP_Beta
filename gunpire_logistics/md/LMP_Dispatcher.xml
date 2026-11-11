@@ -27,13 +27,24 @@
           <return value="false"/>
         </do_if>
         <!-- Hard GT block -->
-        <do_if value="$ship.defaultorder? and ($ship.defaultorder.id == 'GalaxyTraderMK3' or $ship.defaultorder.id == 'GalaxyTraderMK1' or $ship.defaultorder.id == 'GalaxyTraderMK2' or $ship.defaultorder.id == 'GalaxyTraderMK4' or $ship.defaultorder.id == 'GalaxyTraderMK42')">
+        <run_actions ref="GUNPIRE_IsGTManagedShip" result="$isGTManaged">
+          <param name="ship" value="$ship"/>
+        </run_actions>
+        <do_if value="$isGTManaged">
           <run_actions ref="GUNPIRE_Log">
             <param name="component" value="'DISPATCH'"/>
             <param name="message" value="'Blocked: GT ship ' + $ship.idcode"/>
           </run_actions>
           <return value="false"/>
         </do_if>
+        <!-- FAIL CLOSED: no unpaired purchase orders. GT and VAS both queue
+             a corresponding delivery leg; current LMP_CreateTradeOrder does not.
+             Remove this only when paired buy+delivery and recovery are implemented. -->
+        <run_actions ref="GUNPIRE_Log">
+          <param name="component" value="'DISPATCH'"/>
+          <param name="message" value="'Blocked: paired buy/delivery lifecycle not implemented'"/>
+        </run_actions>
+        <return value="false"/>
         <!-- TEST_SINGLE_SHIP: only one controlled ship -->
         <run_actions ref="GUNPIRE_MaxControlledShips" result="$max"/>
         <set_value name="$controlled" exact="0"/>
@@ -60,25 +71,16 @@
           </run_actions>
           <return value="false"/>
         </do_if>
-        <!-- Prefer verified shortage; fall back to first site + probe ware -->
-        <set_value name="$ware" exact="null"/>
-        <set_value name="$site" exact="null"/>
-        <set_value name="$qty" exact="0"/>
-        <do_if value="global.$LMP_Shortages? and global.$LMP_Shortages.keys.count gt 0">
-          <set_value name="$sk" exact="global.$LMP_Shortages.keys.{1}"/>
-          <set_value name="$site" exact="global.$LMP_Shortages.{$sk}.$site"/>
-          <set_value name="$ware" exact="global.$LMP_Shortages.{$sk}.$ware"/>
-          <set_value name="$qty" exact="global.$LMP_Shortages.{$sk}.$qty"/>
+        <!-- Never fabricate demand: source must report a positive shortage. -->
+        <do_if value="not global.$LMP_Shortages? or global.$LMP_Shortages.keys.count == 0">
+          <return value="false"/>
         </do_if>
-        <do_if value="not $ware? or not $site?">
-          <set_value name="$siteKey" exact="$demand.keys.{1}"/>
-          <set_value name="$site" exact="$demand.{$siteKey}.$buildstorage"/>
-          <set_value name="$ware" exact="ware.hullparts"/>
-          <set_value name="$qty" exact="100"/>
-          <run_actions ref="GUNPIRE_Log">
-            <param name="component" value="'DISPATCH'"/>
-            <param name="message" value="'No shortage table; using probe ware hullparts'"/>
-          </run_actions>
+        <set_value name="$sk" exact="global.$LMP_Shortages.keys.{1}"/>
+        <set_value name="$site" exact="global.$LMP_Shortages.{$sk}.$site"/>
+        <set_value name="$ware" exact="global.$LMP_Shortages.{$sk}.$ware"/>
+        <set_value name="$qty" exact="global.$LMP_Shortages.{$sk}.$qty"/>
+        <do_if value="not $site? or not $ware? or $qty le 0">
+          <return value="false"/>
         </do_if>
         <run_actions ref="LMP_FindSellOffers" result="$offers">
           <param name="ship" value="$ship"/>
@@ -109,6 +111,9 @@
           <param name="qty" value="$qty"/>
           <param name="job" value="$job"/>
         </run_actions>
+        <do_if value="not $reserved">
+          <return value="false"/>
+        </do_if>
         <run_actions ref="LMP_CreateTradeOrder" result="$ok">
           <param name="ship" value="$ship"/>
           <param name="tradeoffer" value="$offer"/>
