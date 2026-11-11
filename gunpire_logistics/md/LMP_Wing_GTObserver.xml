@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mdscript name="LMP_Wing_GTObserver" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../x4_scripting_ref/schemas/md.xsd">
+  <cues>
+    <!-- Verified GT 1.0.4 integration point:
+         aiscripts/order.trade.galaxytrader.xml run_search_pipeline emits
+         signal_objects player.galaxy, 'GT_Search_Done', param2
+         table[$Ship, $Found, $TradeList, $SearchMethod, $SearchType, $HomeSector].
+         This cue never signals GT, queues an order, or controls a ship.
+         The search result is NOT the final accepted trade: MK3 subsequently
+         validates docking, blacklists, pricing, cargo, and offer freshness. -->
+    <cue name="LMP_Wing_ObserveGTSearch" instantiate="true">
+      <conditions>
+        <event_object_signalled object="player.galaxy" param="'GT_Search_Done'"/>
+      </conditions>
+      <actions>
+        <set_value name="$data" exact="event.param2"/>
+        <do_if value="not $data? or not $data.$Ship? or not $data.$Ship.exists or not global.$LMP_Wings? or not global.$LMP_Wings.{$data.$Ship}?">
+          <return/>
+        </do_if>
+        <set_value name="$commander" exact="$data.$Ship"/>
+        <do_if value="not $commander.defaultorder? or $commander.defaultorder.id != 'GalaxyTraderMK3'">
+          <return/>
+        </do_if>
+        <set_value name="$record" exact="global.$LMP_Wings.{$commander}"/>
+        <set_value name="$record.$lastSearchAge" exact="player.age"/>
+        <set_value name="$record.$searchMethod" exact="if $data.$SearchMethod? then $data.$SearchMethod else ''"/>
+        <set_value name="$record.$tradeCount" exact="if $data.$TradeList? then $data.$TradeList.count else 0"/>
+        <set_value name="$record.$state" exact="'OBSERVE_ONLY'"/>
+        <set_value name="$record.$preview" exact="null"/>
+        <do_if value="not $data.$Found? or not $data.$Found or not $data.$TradeList? or $data.$TradeList.count == 0">
+          <return/>
+        </do_if>
+        <!-- This is a candidate only, not a committed or executed job.
+             Show how GT's requested quantity maps onto the wing holds. -->
+        <set_value name="$candidate" exact="$data.$TradeList.{1}"/>
+        <run_actions ref="md.LMP_Wing_TradeAdapter.LMP_PreviewMK3WingTrade" result="$preview">
+          <param name="commander" value="$commander"/>
+          <param name="trade" value="$candidate"/>
+        </run_actions>
+        <do_if value="$preview">
+          <set_value name="$record.$preview" exact="$preview"/>
+          <debug_text text="'[GUNPIRE][WING][READ-ONLY] GT MK3 WC=' + $commander.idcode + ' candidates=' + $record.$tradeCount + ' allocationShips=' + $preview.$assignments.count + ' requested=' + $preview.$requested + ' unallocated=' + $preview.$unallocated" chance="100"/>
+        </do_if>
+      </actions>
+    </cue>
+  </cues>
+</mdscript>
