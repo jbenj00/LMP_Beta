@@ -16,6 +16,8 @@
         <param name="additionalTarget" value="0"/>
         <param name="commanderAmount" value="$finalBuyAmount"/>
         <param name="commanderUnitPrice" value="$pendingTrade.$BuyOffer.unitprice"/>
+        <param name="minROI" value="if $searchMinROI? then $searchMinROI else 0"/>
+        <param name="minAbsoluteProfit" value="if $searchMinAbsoluteProfit? then $searchMinAbsoluteProfit else 0"/>
         <param name="buyInternal" value="$tradeBuyLegInternal"/>
         <param name="sellInternal" value="$tradeSellLegInternal"/>
       </run_script>
