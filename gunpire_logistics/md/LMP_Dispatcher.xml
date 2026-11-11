@@ -133,7 +133,20 @@
           <set_value name="$qty" exact="[$qty, $offer.amount].min"/>
           <set_value name="$qty" exact="[$qty, $targetOffer.amount].min"/>
           <!-- X4 cargo transport capacity, per VAS run planner. -->
-          <set_value name="$maxCargoQty" exact="$ship.cargo.free.container / $ware.volume"/>
+          <do_if value="$ware.volume le 0 or $ship.cargo.{$ware}.max le 0">
+            <continue/>
+          </do_if>
+          <set_value name="$freeVolume" exact="0"/>
+          <do_if value="$ware.waretransport == waretransport.container">
+            <set_value name="$freeVolume" exact="$ship.cargo.free.container + $ship.cargo.free.universal"/>
+          </do_if>
+          <do_elseif value="$ware.waretransport == waretransport.solid">
+            <set_value name="$freeVolume" exact="$ship.cargo.free.solid + $ship.cargo.free.universal"/>
+          </do_elseif>
+          <do_elseif value="$ware.waretransport == waretransport.liquid">
+            <set_value name="$freeVolume" exact="$ship.cargo.free.liquid + $ship.cargo.free.universal"/>
+          </do_elseif>
+          <set_value name="$maxCargoQty" exact="($freeVolume / $ware.volume)i"/>
           <set_value name="$qty" exact="[$qty, $maxCargoQty].min"/>
           <do_if value="$qty le 0">
             <continue/>
