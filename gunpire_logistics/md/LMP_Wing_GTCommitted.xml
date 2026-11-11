@@ -80,6 +80,7 @@
           <run_actions ref="md.LMP_Wing_TradeAdapter.LMP_PreviewMK3WingTrade" result="$allocation">
             <param name="commander" value="$wc"/>
             <param name="trade" value="table[$BuyOffer = $data.$BuyOffer, $SellOffer = $data.$SellOffer, $Amount = $data.$Amount, $IsSellOnly = false]"/>
+            <param name="excludeCommander" value="true"/>
           </run_actions>
           <do_if value="$allocation">
             <run_actions ref="md.LMP_Wing_OfferValidation.LMP_ValidateWingQuote" result="$quote">
