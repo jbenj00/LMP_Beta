@@ -125,8 +125,14 @@ assert "$reservationKey" in resume_xml and "$reservation.$ware" in resume_xml
 assert "$ship.cargo.list.count != 1" in resume_xml
 assert "$ship.cargo.{$reservation.$ware}.count != $entry.$purchasedQty" in resume_xml
 assert "$entry.$deliveredQty != 0" in resume_xml
-assert "$entry.$targetOffer.ware != $reservation.$ware" in resume_xml
-assert "$entry.$targetOffer.amount lt $entry.$purchasedQty" in resume_xml
+assert "find_buy_offer" in resume_xml, "Must refresh offer at original buyer"
+assert 'buyer="$reservation.$site"' in resume_xml, "Buyer must equal reserved destination"
+assert 'tradepartner="$ship"' in resume_xml, "Refresh must honor this ship's trading rights"
+assert "$candidateOffer.ware != $reservation.$ware" in resume_xml
+assert "$candidateOffer.amount lt $entry.$purchasedQty" in resume_xml
+assert 'name="$targetOffer" exact="null"' in resume_xml, "No fallback to stale offer"
+assert 'tradeoffer="$targetOffer"' in resume_xml, "Only validated live offer can be used"
+assert 'name="global.$LMP_Ships.{$ship}.$targetOffer" exact="$targetOffer"' in resume_xml
 assert len(list(resume.iter("create_trade_order"))) == 1
 assert not list(resume.iter("cancel_order"))
 assert not list(resume.iter("remove_value"))
