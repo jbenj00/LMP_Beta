@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mdscript name="LMP_ContextMenu" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../x4_scripting_ref/schemas/md.xsd">
+  <cues>
+    <!-- SOURCE: GT md/gt_context_rename.xml, AddRenameAction / GT_RenameAction;
+         VAS md/supply_needs_planner_interact_menu.xml, Add_Interact_Actions.
+         Uses the existing SirNukes Interact_Menu_API. No order flush or GT takeover. -->
+    <cue name="LMP_AddPassiveActions" instantiate="true">
+      <conditions>
+        <event_cue_signalled cue="md.Interact_Menu_API.Get_Actions"/>
+      </conditions>
+      <actions>
+        <set_value name="$ship" exact="@event.param.$object"/>
+        <do_if value="not $ship? or not $ship.exists or not $ship.isclass.{class.ship} or not $ship.isplayerowned">
+          <return/>
+        </do_if>
+        <!-- Keep GT-managed ships out of LMP passive control. -->
+        <run_actions ref="md.GUNPIRE_Core.GUNPIRE_IsGTManagedShip" result="$isGT">
+          <param name="ship" value="$ship"/>
+        </run_actions>
+        <do_if value="$isGT">
+          <return/>
+        </do_if>
+        <do_if value="global.$LMP_Ships? and global.$LMP_Ships.{$ship}? and global.$LMP_Ships.{$ship}.$role == 'PASSIVE' and (not global.$LMP_Ships.{$ship}.$stopRequested? or not global.$LMP_Ships.{$ship}.$stopRequested)">
+          <signal_cue_instantly cue="md.Interact_Menu_API.Add_Action" param="table[
+            $id = 'gunpire_stop_passive',
+            $section = 'selected_orders',
+            $text = 'GUNPIRE: Stop Passive Logistics',
+            $icon = 'order_tradeperform',
+            $callback = LMP_StopPassiveAction,
+          ]"/>
+        </do_if>
+        <do_else>
+          <signal_cue_instantly cue="md.Interact_Menu_API.Add_Action" param="table[
+            $id = 'gunpire_start_passive',
+            $section = 'selected_orders',
+            $text = 'GUNPIRE: Start Passive Logistics',
+            $icon = 'order_tradeperform',
+            $callback = LMP_StartPassiveAction,
+          ]"/>
+        </do_else>
+      </actions>
+    </cue>
+
+    <cue name="LMP_StartPassiveAction" instantiate="true" namespace="this">
+      <conditions><event_cue_signalled/></conditions>
+      <actions>
+        <set_value name="$ship" exact="@event.param.$object"/>
+        <run_actions ref="md.LMP_ShipRegistry.LMP_StartPassiveShip" result="$started">
+          <param name="ship" value="$ship"/>
+        </run_actions>
+        <do_if value="$started">
+          <show_notification text="'GUNPIRE: Passive logistics started'" timeout="4s"/>
+        </do_if>
+        <do_else>
+          <show_notification text="'GUNPIRE: No eligible delivery; ship unchanged'" timeout="4s"/>
+        </do_else>
+        <reset_cue cue="this"/>
+      </actions>
+    </cue>
+
+    <cue name="LMP_StopPassiveAction" instantiate="true" namespace="this">
+      <conditions><event_cue_signalled/></conditions>
+      <actions>
+        <set_value name="$ship" exact="@event.param.$object"/>
+        <run_actions ref="md.LMP_ShipRegistry.LMP_StopPassiveShip" result="$stopped">
+          <param name="ship" value="$ship"/>
+        </run_actions>
+        <do_if value="$stopped">
+          <show_notification text="'GUNPIRE: Passive logistics will stop after current trip'" timeout="4s"/>
+        </do_if>
+        <reset_cue cue="this"/>
+      </actions>
+    </cue>
+  </cues>
+</mdscript>
