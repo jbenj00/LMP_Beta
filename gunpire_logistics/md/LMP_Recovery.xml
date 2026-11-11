@@ -235,6 +235,11 @@
           <return value="false"/>
         </do_if>
         <set_value name="$reservation" exact="global.$LMP_Reservations.{$key}"/>
+        <!-- Legacy save reservations may predate the job field. For new
+             entries it must also match, without rewriting legacy data. -->
+        <do_if value="$reservation.$job? and $reservation.$job != $entry.$job">
+          <return value="false"/>
+        </do_if>
         <do_if value="$reservation.$ship != $ship or $reservation.$qty != $entry.$requestedQty">
           <return value="false"/>
         </do_if>
