@@ -250,6 +250,12 @@
           <return value="false"/>
         </do_if>
         <!-- Existing save files may contain a stale wing registry entry.
+             A dedicated wing must retain its own LMP commander role;
+             the legacy observer remains separate and read-only. -->
+        <do_if value="global.$LMP_Wings.{$commander}.$state == 'LMP_WING_CONFIG_ONLY' and (not global.$LMP_Ships? or not global.$LMP_Ships.{$commander}? or global.$LMP_Ships.{$commander}.$role != 'WING')">
+          <return value="false"/>
+        </do_if>
+        <!-- Existing save files may contain a stale wing registry entry.
              Fail closed if its commander was reassigned to PASSIVE. -->
         <do_if value="global.$LMP_Ships? and global.$LMP_Ships.{$commander}? and global.$LMP_Ships.{$commander}.$role == 'PASSIVE'">
           <return value="false"/>
@@ -285,6 +291,20 @@
             <do_elseif value="global.$LMP_Ships.{$ship}.$role != 'WING_MEMBER' or global.$LMP_Ships.{$ship}.$wingCommander != $commander">
               <set_value name="$usable" exact="false"/>
             </do_elseif>
+          </do_if>
+          <!-- Dedicated LMP trade previews cannot borrow ships doing
+               unrelated work. Keep Assist/Defence as a native assignment,
+               but reject other defaults, queued orders and existing cargo. -->
+          <do_if value="global.$LMP_Wings.{$commander}.$state == 'LMP_WING_CONFIG_ONLY'">
+            <do_if value="($ship.orders? and $ship.orders.count gt 0) or ($ship.tradeorders? and $ship.tradeorders.count gt 0) or not $ship.cargo.list? or $ship.cargo.list.count gt 0">
+              <set_value name="$usable" exact="false"/>
+            </do_if>
+            <do_if value="$ship != $commander and $ship.defaultorder? and $ship.defaultorder.id != 'Assist'">
+              <set_value name="$usable" exact="false"/>
+            </do_if>
+            <do_if value="$ship == $commander and $ship.defaultorder?">
+              <set_value name="$usable" exact="false"/>
+            </do_if>
           </do_if>
           <!-- A PASSIVE gap filler must never be recruited into a wing trade. -->
           <do_if value="global.$LMP_Ships? and global.$LMP_Ships.{$ship}? and global.$LMP_Ships.{$ship}.$role == 'PASSIVE'">
