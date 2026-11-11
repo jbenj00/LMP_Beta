@@ -17,7 +17,7 @@ schema_path = root / "refs/x4_scripting_ref/schemas/aiscripts.xsd"
 patch = etree.parse(str(patch_path))
 assert patch.getroot().tag == "diff", "GT patch must be XML diff, not a GT script replacement"
 ops = patch.getroot().findall("add")
-assert len(ops) == 1 and len(patch.getroot()) == 1, "Unexpected GT patch operations"
+assert len(ops) == 1 and len([x for x in patch.getroot() if isinstance(x.tag, str)]) == 1, "Unexpected GT patch operations"
 selector = ops[0].get("sel")
 assert selector == "//create_trade_order[@object='this.ship'][@tradeoffer='$pendingTrade.$BuyOffer'][@amount='$finalBuyAmount']"
 assert ops[0].get("pos") == "after"
