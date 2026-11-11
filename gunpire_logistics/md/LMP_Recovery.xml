@@ -151,10 +151,14 @@
         <do_if value="$gt">
           <return value="false"/>
         </do_if>
-        <do_if value="not $entry.$reservationKey? or not global.$LMP_Reservations? or not global.$LMP_Reservations.{$entry.$reservationKey}?">
+        <do_if value="not $entry.$reservationKey? or not global.$LMP_Reservations?">
           <return value="false"/>
         </do_if>
-        <set_value name="$reservation" exact="global.$LMP_Reservations.{$entry.$reservationKey}"/>
+        <set_value name="$key" exact="$entry.$reservationKey"/>
+        <do_if value="not global.$LMP_Reservations.{$key}?">
+          <return value="false"/>
+        </do_if>
+        <set_value name="$reservation" exact="global.$LMP_Reservations.{$key}"/>
         <do_if value="$reservation.$ship != $ship or not $reservation.$site? or not $reservation.$site.exists or not $reservation.$ware?">
           <return value="false"/>
         </do_if>
