@@ -182,6 +182,10 @@
           <set_value name="global.$LMP_Ships.{$ship}.$job" exact="$job"/>
           <return value="false"/>
         </do_if>
+        <!-- Keep the live offers only while this job is unresolved.
+             Trade-cancelled events expose an offer, NOT a trade order. -->
+        <set_value name="global.$LMP_Ships.{$ship}.$sourceOffer" exact="$offer"/>
+        <set_value name="global.$LMP_Ships.{$ship}.$targetOffer" exact="$targetOffer"/>
         <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'PURCHASING'"/>
         <set_value name="global.$LMP_Ships.{$ship}.$job" exact="$job"/>
         <set_value name="global.$LMP_Ships.{$ship}.$buyOrder" exact="$trip.$buy"/>
