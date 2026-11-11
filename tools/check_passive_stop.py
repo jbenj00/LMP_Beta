@@ -99,6 +99,8 @@ assert "CARGO_UNKNOWN_RECONCILE" in audit_xml
 assert "RESERVATION_MISSING_RECONCILE" in audit_xml
 assert "RESERVATION_MISMATCH_RECONCILE" in audit_xml
 assert "global.$LMP_Reservations.{$key}.$ship != $ship" in audit_xml
+assert "$reservationKey" in audit_xml, "Saved jobs must use persisted ledger reference"
+assert "$reservationKey" in reserve_xml, "Reservation creator must persist lookup key"
 assert "global.$LMP_Reservations.{$key}?" in audit_xml
 assert audit_xml.index("state != 'RECONCILE_ON_LOAD'") < audit_xml.index("RESERVATION_MISSING_RECONCILE"), "Audit may not overwrite terminal states"
 assert "$ship.cargo.list.count gt 0" in audit_xml
