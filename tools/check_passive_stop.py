@@ -78,7 +78,7 @@ verify = named(recovery, "library", "LMP_VerifyActualDelivery")
 verify_xml = ET.tostring(verify, encoding="unicode")
 on_trade_xml = ET.tostring(on_trade, encoding="unicode")
 assert "$requestedQty" in dispatch_xml and "$purchasedQty" in dispatch_xml and "$deliveredQty" in dispatch_xml
-assert "$purchasedQty != $entry.$deliveredQty" in verify_xml
+assert "$entry.$purchasedQty != $entry.$deliveredQty" in verify_xml
 assert "$entry.$deliveredQty gt $entry.$requestedQty" in verify_xml
 assert "transferredamount" in on_trade_xml
 assert "$purchasedQty" in on_trade_xml and "$deliveredQty" in on_trade_xml
