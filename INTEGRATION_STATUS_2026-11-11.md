@@ -1,0 +1,27 @@
+# GUNPIRE integrated trip increment — 2026-11-11
+
+**Target:** X4 9.00, GT 1.0.4 Nov 7 snapshot, VAS planner.
+
+## Delivered source changes (no in-game results claimed)
+- `LMP_TradeCycle`: VAS-style paired trade orders; records both buy and delivery order references.
+- `LMP_Demand`: live VAS-style build-storage buyer offers, no invented shortage volumes.
+- `LMP_Sources`: live suppliers ordered by the VAS gate-distance / physical-distance technique from the ship's *current* location, excluding hostile/unreachable/blacklisted sources.
+- `LMP_Dispatcher`: only explicitly enrolled `PASSIVE` ships, empty trade cargo and queue, all candidate build-storage shortages considered, reservations subtracted, capacity capped, paired orders queued, matching order references stored. Does not borrow GT ships.
+- `LMP_Recovery`: purchase event only moves to `DELIVERING`; requires a matching delivery event, empty hold and cleared trade queue before releasing reservation and redispatching. Saves with ambiguous in-flight state stay quarantined instead of being silently reset. One-second completion cue delay allows engine order-queue state to settle.
+- `LMP_ShipRegistry`: explicit `LMP_StartPassiveShip` / `LMP_StopPassiveShip` library entrypoints; stop honors active delivery.
+- Cross-MD `run_actions` calls qualified as `md.Script.Library`.
+
+## Validation
+- XML well-formedness checked in the source archive generation.
+- Cross-file library references statically checked in the source archive.
+- No X4 runtime testing performed and no full X4 MD XSD validation completed.
+
+## Not yet operational
+- No player-facing UI, passive behavior registration, or ordinary in-game way to invoke the `LMP_StartPassiveShip` entrypoint.
+- No safe ACTIVE GT borrowing or complete trader-settings snapshot restoration.
+- No aged POS demand, GT MK1 selling fallback, priority sliders, value-aware source pricing, or manual recovery UI.
+- Half-queued orders and ambiguous delivery states are quarantined and require reconciliation.
+- Passive ships may need a valid trade-order-processing default behavior to execute queued trades.
+- No in-game compatibility claims.
+
+**This is a source-code increment, not a complete production mod.**
