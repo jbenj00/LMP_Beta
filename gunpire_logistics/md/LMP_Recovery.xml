@@ -111,12 +111,24 @@
       <conditions><event_trade_completed space="player.galaxy"/></conditions>
       <delay exact="1s"/>
       <actions>
-        <do_if value="not event.param2? or not event.param2.object?">
+        <do_if value="not event.param2? or not global.$LMP_Ships?">
           <return/>
         </do_if>
+        <!-- X4 event.param2 is the completed trade deal. Match our
+             stored handles directly; do not depend on an undocumented
+             trade-deal .object property to recover the ship. -->
         <set_value name="$order" exact="event.param2"/>
-        <set_value name="$ship" exact="$order.object"/>
-        <do_if value="not global.$LMP_Ships? or not global.$LMP_Ships.{$ship}? or not global.$LMP_Ships.{$ship}.$deliverOrder?">
+        <set_value name="$ship" exact="null"/>
+        <do_for_each name="$candidate" in="global.$LMP_Ships.keys">
+          <do_if value="not $candidate? or not $candidate.exists">
+            <continue/>
+          </do_if>
+          <do_if value="$order == global.$LMP_Ships.{$candidate}.$buyOrder or $order == global.$LMP_Ships.{$candidate}.$deliverOrder">
+            <set_value name="$ship" exact="$candidate"/>
+            <break/>
+          </do_if>
+        </do_for_each>
+        <do_if value="not $ship? or not global.$LMP_Ships.{$ship}.$deliverOrder?">
           <return/>
         </do_if>
         <!-- A cancel or partial-order failure is terminal until explicit
