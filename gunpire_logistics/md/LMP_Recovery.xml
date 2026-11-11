@@ -262,7 +262,7 @@
         <run_actions ref="md.LMP_Recovery.LMP_VerifyTripReservation" result="$reserved">
           <param name="ship" value="$ship"/>
         </run_actions>
-        <do_if value="not $reserved or not global.$LMP_Reservations.{$entry.$reservationKey}?">
+        <do_if value="not $reserved">
           <return value="false"/>
         </do_if>
         <set_value name="$key" exact="$entry.$reservationKey"/>
