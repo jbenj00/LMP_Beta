@@ -58,7 +58,9 @@
              Caller must quarantine the ship and reconcile; NEVER silently
              release a reservation or replan with cargo still aboard. -->
         <do_if value="not $deliverOrder?">
-          <return value="false"/>
+          <!-- Preserve the successfully created BUY handle for the caller.
+               The reserved ship MUST be quarantined, never re-dispatched. -->
+          <return value="table[$buy = $buyOrder]"/>
         </do_if>
         <return value="table[$buy = $buyOrder, $deliver = $deliverOrder]"/>
       </actions>
