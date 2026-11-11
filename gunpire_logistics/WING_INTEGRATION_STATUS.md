@@ -43,6 +43,7 @@
 ## New executable bridge — EXPERIMENTAL (November 11)
 
 - `aiscripts/order.trade.galaxytrader.xml`: a **single XPath `<add>` patch** after GT MK3's own validated BUY order creation. Exact selector matches **one** node in the supplied Galaxy Trader 1.0.4 `order.trade.galaxytrader.xml`; source SHA-256 `b897eac4a126f02ebd23b412b6375a2499c637d995ea62fedc2607ba6d381540`. This is source inspection, **not an in-game loader test**.
+- `md/LMP_Wing_Jobs.xml` now remembers each ship under its original commander's `$pendingMembers` ledger. `lib.lmp.wing.busy` checks those originally assigned ships even if a trade order temporarily removes their native subordinate relationship; a detached ship with cargo or outstanding trade orders continues to hold the wing's next-search gate. Missing/destroyed ships are not refunded or silently recreated.
 - `aiscripts/lib.lmp.wing.busy.xml` plus a **second one-node GT patch** after `main_loop`: hold MK3's next search until tracked wing members have **no trade orders and no cargo**. Recheck at 10-second intervals only while a wing job is outstanding, not continuous fleet polling. The user can disable wing trading to allow GT to resume without cancelling member cargo or orders. Verified selector matches one GT v1.0.4 `main_loop` label in uploaded source.
 - Per-member execution now also applies the MK3 pilot's `$searchMinROI` and global `$searchMinAbsoluteProfit` thresholds against each member's current live prices, matching the conditions in `lib.gt.tradematch`. Its shared budget reserves the commander's already-queued purchase cost before allocating additional orders.
 - `aiscripts/lib.lmp.wing.extend.xml`: only runs when BOTH the global gate and the commander's individual execution gate are enabled. It retains GT's original commander trade, then requests **additional same-ware purchases and deliveries for direct subordinates**, using per-member live buyer/seller offers, compatible cargo free volume, one shared wallet budget, and GT's own account selector. It skips illegal wares and ships with cargo or existing trade orders. It excludes GT-managed subordinates (including Assist baseorders).
@@ -58,7 +59,7 @@
 1. Validate actual game's **two GT patch targets**, MK3 trade continuation, subordinate order execution, trader XP and escort behavior, with Fleet Doctrine enabled and disabled.
 2. Add coherent convoy staging / synchronized multi-stop routing without overriding active trade orders or writing a parallel GT search engine.
 3. Convert GT's original trade search and scoring to evaluate the actual **combined eligible wing capacity** prior to selection; the current extension only expands an MK3-selected trade after commander commit.
-4. Add robust per-member completion/failure recovery, supplier exhaustion and credits handling, and reservation convergence across simultaneous orders.
+4. Add robust per-member cancellation/failure recovery, short fills, supplier exhaustion and reservation convergence across simultaneous orders. The current ledger tracks order requests and remaining cargo, but does not yet reconcile confirmed actual deliveries or GT profit records.
 5. Support automatic subordinate enrollment and persistent F1-Pn names without fighting GT auto-naming.
 6. Validate both XML schemas and in-game behavior for all changed files; CI success alone cannot test gameplay.
 
