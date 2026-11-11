@@ -96,7 +96,10 @@
           <param name="commander" value="$ship"/>
         </run_actions>
         <do_if value="$stats">
-          <show_notification text="'GUNPIRE MK3 Wing: ' + $stats.$eligible.count + ' eligible ships, ' + $stats.$eligibleFree + ' m3 free'" timeout="8s"/>
+          <run_actions ref="md.LMP_Wing_Jobs.LMP_GetWingJobSnapshot" result="$jobs">
+            <param name="commander" value="$ship"/>
+          </run_actions>
+          <show_notification text="'GUNPIRE MK3 Wing: ' + $stats.$eligible.count + ' eligible ships, ' + $stats.$eligibleFree + ' m3 free; active=' + (if $jobs then $jobs.$queuedShips else 0) + ', loaded=' + (if $jobs then $jobs.$loadedShips else 0)" timeout="8s"/>
         </do_if>
       </actions>
     </cue>
