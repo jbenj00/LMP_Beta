@@ -1,0 +1,43 @@
+name: GUNPIRE wing XML checks
+
+on:
+  push:
+    branches:
+      - gunpire/integrated-trip-20261111
+  pull_request:
+    paths:
+      - 'gunpire_logistics/md/LMP_Wing*.xml'
+      - 'tools/check_wing_static.py'
+      - '.github/workflows/wing-validation.yml'
+
+jobs:
+  check-wing:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Parse and enforce non-mutating wing module boundary
+        run: python tools/check_wing_static.py
+      - name: Check availability of the X4 MD schema
+        run: test -s refs/x4_scripting_ref/schemas/md.xsd
+      - name: Validate wing MD against X4 schema
+        run: |
+          python -m pip install lxml
+          python - <<'PY'
+          from pathlib import Path
+          from lxml import etree
+          schema_path = Path('refs/x4_scripting_ref/schemas/md.xsd')
+          schema = etree.XMLSchema(etree.parse(str(schema_path)))
+          failures = []
+          for filename in sorted(Path('gunpire_logistics/md').glob('LMP_Wing*.xml')):
+              doc = etree.parse(str(filename))
+              if not schema.validate(doc):
+                  failures.extend(f'{filename}: {error}' for error in schema.error_log)
+                  print(f'FAIL {filename}')
+              else:
+                  print(f'PASS {filename}')
+          if failures:
+              raise SystemExit('\n'.join(failures))
+          PY
