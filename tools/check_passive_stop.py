@@ -41,6 +41,12 @@ for label, node in (("Stop action", stop), ("trade completion", on_trade), ("idl
         for e in node.iter("run_actions")
     ), f"{label} must attempt final release"
 
+tail = named(recovery, "library", "LMP_ReconcileDeliveryTail")
+tail_xml = ET.tostring(tail, encoding="unicode")
+assert "DELIVERY_RECONCILE" in tail_xml, "Tail reconciliation needs observed delivery-completed state"
+assert "LMP_TripIsFullyFinished" in tail_xml, "Tail reconciliation needs an empty hold and clear trade queue"
+assert "LMP_Reservations.LMP_Release" in tail_xml, "Tail must release reservation at clean boundary"
+assert any(e.attrib.get("ref") == "md.LMP_Recovery.LMP_ReconcileDeliveryTail" for e in tick.iter("run_actions")), "Idle tick must revisit delayed delivery completion"
 assert any(e.attrib.get("ref") == "md.LMP_Dispatcher.LMP_DispatchOne" for e in on_trade.iter("run_actions"))
 assert "cargo.list.count" in ET.tostring(finished, encoding="unicode")
 assert "tradeorders.count" in ET.tostring(finished, encoding="unicode")
