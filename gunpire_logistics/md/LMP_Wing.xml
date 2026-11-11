@@ -49,6 +49,47 @@
       </actions>
     </library>
 
+    <!-- Dedicated LMP MK3 wing enrollment. Unlike the legacy
+         experimental GT bridge, this does not require or create GT orders.
+         Registration is configuration-only until a verified LMP MK3
+         default order and independent trade executor are implemented. -->
+    <library name="LMP_RegisterDedicatedWing" purpose="run_actions">
+      <params><param name="commander"/></params>
+      <actions>
+        <do_if value="not $commander? or not $commander.exists or not $commander.isplayerowned or not $commander.isclass.{class.ship}">
+          <return value="false"/>
+        </do_if>
+        <do_if value="$commander.commander? or $commander.defaultorder? or ($commander.orders? and $commander.orders.count gt 0) or ($commander.tradeorders? and $commander.tradeorders.count gt 0)">
+          <return value="false"/>
+        </do_if>
+        <do_if value="not $commander.cargo.list? or $commander.cargo.list.count gt 0">
+          <return value="false"/>
+        </do_if>
+        <run_actions ref="md.GUNPIRE_Core.GUNPIRE_IsGTManagedShip" result="$gt">
+          <param name="ship" value="$commander"/>
+        </run_actions>
+        <do_if value="$gt or (global.$LMP_Wings? and global.$LMP_Wings.{$commander}?)">
+          <return value="false"/>
+        </do_if>
+        <run_actions ref="md.LMP_ShipRegistry.LMP_EnrollShip" result="$enrolled">
+          <param name="ship" value="$commander"/>
+          <param name="role" value="'WING'"/>
+        </run_actions>
+        <do_if value="not $enrolled">
+          <return value="false"/>
+        </do_if>
+        <do_if value="not global.$LMP_Wings?">
+          <set_value name="global.$LMP_Wings" exact="table[]"/>
+        </do_if>
+        <set_value name="global.$LMP_Wings.{$commander}" exact="table[]"/>
+        <set_value name="global.$LMP_Wings.{$commander}.$state" exact="'LMP_WING_CONFIG_ONLY'"/>
+        <set_value name="global.$LMP_Wings.{$commander}.$executeEnabled" exact="false"/>
+        <set_value name="global.$LMP_Wings.{$commander}.$homeSector" exact="null"/>
+        <set_value name="global.$LMP_Wings.{$commander}.$homeStation" exact="null"/>
+        <return value="true"/>
+      </actions>
+    </library>
+
     <!-- Only count direct subordinates in the same native fleet. Do not
          inadvertently aggregate an entire nested fleet or GT trader assigned
          elsewhere. Ships with queued work/cargo retain their actual free volume. -->
