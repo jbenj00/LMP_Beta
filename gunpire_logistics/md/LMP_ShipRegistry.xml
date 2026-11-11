@@ -96,14 +96,62 @@
       </actions>
     </library>
 
-    <!-- Stop after any current paired delivery; never cancel ship orders. -->
+    <!-- Finalize a requested PASSIVE stop ONLY at a clean transaction
+         boundary. X4/GT source verifies cancel_order on a default order.
+         Never cancel queued trade orders, never clear cargo and never
+         touch any order other than our own LMP_Passive default. -->
+    <library name="LMP_FinalizePassiveStop" purpose="run_actions">
+      <params><param name="ship"/></params>
+      <actions>
+        <do_if value="not $ship? or not $ship.exists or not global.$LMP_Ships? or not global.$LMP_Ships.{$ship}?">
+          <return value="false"/>
+        </do_if>
+        <do_if value="global.$LMP_Ships.{$ship}.$role != 'PASSIVE' or not global.$LMP_Ships.{$ship}.$stopRequested? or not global.$LMP_Ships.{$ship}.$stopRequested">
+          <return value="false"/>
+        </do_if>
+        <!-- A queued buy/deliver pair or an unresolved reservation MUST
+             survive Stop and save/load until recovery reconciles it. -->
+        <do_if value="global.$LMP_Ships.{$ship}.$job? and global.$LMP_Ships.{$ship}.$job != null">
+          <return value="false"/>
+        </do_if>
+        <run_actions ref="md.LMP_TradeCycle.LMP_TripIsFullyFinished" result="$idle">
+          <param name="ship" value="$ship"/>
+        </run_actions>
+        <do_if value="not $idle">
+          <return value="false"/>
+        </do_if>
+        <!-- Other mods/player may have replaced our default in the
+             meantime. In that case, only remove our metadata. -->
+        <do_if value="$ship.defaultorder? and @$ship.defaultorder.id == 'LMP_Passive'">
+          <cancel_order order="$ship.defaultorder"/>
+        </do_if>
+        <do_if value="$ship.defaultorder? and @$ship.defaultorder.id == 'LMP_Passive'">
+          <set_value name="global.$LMP_Ships.{$ship}.$state" exact="'STOP_REMOVE_RETRY'"/>
+          <return value="false"/>
+        </do_if>
+        <remove_value name="global.$LMP_Ships.{$ship}"/>
+        <run_actions ref="md.GUNPIRE_Core.GUNPIRE_Log">
+          <param name="component" value="'FLEET'"/>
+          <param name="message" value="'PASSIVE stopped and released: ' + $ship.idcode"/>
+        </run_actions>
+        <return value="true"/>
+      </actions>
+    </library>
+
+    <!-- Stop after current paired delivery; finalize immediately if idle. -->
     <library name="LMP_StopPassiveShip" purpose="run_actions">
       <params><param name="ship"/></params>
       <actions>
         <do_if value="not global.$LMP_Ships? or not global.$LMP_Ships.{$ship}?">
           <return value="false"/>
         </do_if>
+        <do_if value="global.$LMP_Ships.{$ship}.$role != 'PASSIVE'">
+          <return value="false"/>
+        </do_if>
         <set_value name="global.$LMP_Ships.{$ship}.$stopRequested" exact="true"/>
+        <run_actions ref="md.LMP_ShipRegistry.LMP_FinalizePassiveStop" result="$released">
+          <param name="ship" value="$ship"/>
+        </run_actions>
         <return value="true"/>
       </actions>
     </library>
